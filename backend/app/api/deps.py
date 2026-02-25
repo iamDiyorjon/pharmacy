@@ -76,7 +76,7 @@ async def get_current_user(
 
     token_raw: str = credentials.credentials
 
-    # --- JWT path (staff magic-link tokens) --------------------------------
+    # --- JWT path (staff magic-link tokens or web auth) ---------------------
     if scheme == "bearer":
         try:
             payload = jwt.decode(
@@ -84,14 +84,30 @@ async def get_current_user(
                 settings.secret_key,
                 algorithms=["HS256"],
             )
-            telegram_user_id = int(payload["sub"])
         except (JWTError, KeyError, ValueError):
             # Not a valid JWT — fall through to Telegram initData validation
             pass
         else:
-            stmt = select(User).where(User.telegram_user_id == telegram_user_id)
-            result = await db.execute(stmt)
-            user: User | None = result.scalar_one_or_none()
+            # Try uid claim first (works for both web and Telegram JWTs)
+            import uuid as _uuid
+            uid = payload.get("uid")
+            user: User | None = None
+            if uid:
+                try:
+                    stmt = select(User).where(User.id == _uuid.UUID(uid))
+                    result = await db.execute(stmt)
+                    user = result.scalar_one_or_none()
+                except ValueError:
+                    pass
+            # Fallback: lookup by telegram_user_id from sub
+            if user is None:
+                try:
+                    telegram_user_id = int(payload["sub"])
+                    stmt = select(User).where(User.telegram_user_id == telegram_user_id)
+                    result = await db.execute(stmt)
+                    user = result.scalar_one_or_none()
+                except (KeyError, ValueError):
+                    pass
             if user is None:
                 raise credentials_exception
             return user

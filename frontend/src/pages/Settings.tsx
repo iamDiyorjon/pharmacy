@@ -1,15 +1,33 @@
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import LanguageToggle from '../components/LanguageToggle';
 
 export default function Settings() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const tg = window.Telegram?.WebApp;
-  const user = tg?.initDataUnsafe?.user;
+  const tgUser = tg?.initDataUnsafe?.user;
 
-  const initials = user
-    ? (user.first_name?.[0] ?? '') + (user.last_name?.[0] ?? '')
-    : '?';
+  const isWebUser = !!localStorage.getItem('web_token');
+  const webName = localStorage.getItem('user_name') || '';
+
+  const displayName = tgUser
+    ? `${tgUser.first_name}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`
+    : webName || t('settings.title');
+
+  const initials = tgUser
+    ? (tgUser.first_name?.[0] ?? '') + (tgUser.last_name?.[0] ?? '')
+    : webName ? webName[0] : '?';
+
+  const handleLogout = () => {
+    localStorage.removeItem('web_token');
+    localStorage.removeItem('staff_token');
+    localStorage.removeItem('isStaff');
+    localStorage.removeItem('user_name');
+    navigate('/');
+    window.location.reload();
+  };
 
   return (
     <div style={styles.page}>
@@ -18,20 +36,25 @@ export default function Settings() {
         <div style={styles.avatar}>
           <span style={styles.avatarText}>{initials.toUpperCase()}</span>
         </div>
-        <h1 style={styles.heroTitle}>
-          {user ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : t('settings.title')}
-        </h1>
+        <h1 style={styles.heroTitle}>{displayName}</h1>
       </header>
 
       <div style={styles.content}>
         {/* Profile info */}
-        {user && (
+        {tgUser && (
           <section style={styles.card}>
             <h2 style={styles.sectionTitle}>{t('settings.profile')}</h2>
-            <Row label={t('settings.firstName')} value={user.first_name} />
-            {user.last_name && (
-              <Row label={t('settings.lastName')} value={user.last_name} />
+            <Row label={t('settings.firstName')} value={tgUser.first_name} />
+            {tgUser.last_name && (
+              <Row label={t('settings.lastName')} value={tgUser.last_name} />
             )}
+          </section>
+        )}
+
+        {isWebUser && !tgUser && (
+          <section style={styles.card}>
+            <h2 style={styles.sectionTitle}>{t('settings.profile')}</h2>
+            <Row label={t('settings.firstName')} value={webName} />
           </section>
         )}
 
@@ -40,6 +63,13 @@ export default function Settings() {
           <h2 style={styles.sectionTitle}>{t('settings.language')}</h2>
           <LanguageToggle />
         </section>
+
+        {/* Logout for web users */}
+        {isWebUser && (
+          <button onClick={handleLogout} style={styles.logoutBtn}>
+            {t('auth.logout', 'Chiqish')}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -106,5 +136,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--tg-theme-hint-color, #666)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  logoutBtn: {
+    padding: '14px',
+    fontSize: 15,
+    fontWeight: 600,
+    color: '#d32f2f',
+    background: '#ffeaea',
+    border: 'none',
+    borderRadius: 12,
+    cursor: 'pointer',
+    marginTop: 4,
   },
 };

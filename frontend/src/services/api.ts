@@ -159,8 +159,9 @@ export interface AuthResponse {
   token_type: string;
   expires_in: number;
   user_id: string;
-  telegram_user_id: number;
+  telegram_user_id: number | null;
   is_staff: boolean;
+  first_name: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,8 +178,11 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor — prefer stored JWT, fall back to Telegram Mini App initData
 apiClient.interceptors.request.use((config) => {
   const staffToken = localStorage.getItem('staff_token');
+  const webToken = localStorage.getItem('web_token');
   if (staffToken) {
     config.headers['Authorization'] = `Bearer ${staffToken}`;
+  } else if (webToken) {
+    config.headers['Authorization'] = `Bearer ${webToken}`;
   } else {
     const initDataRaw = window.Telegram?.WebApp?.initData;
     if (initDataRaw) {
@@ -203,6 +207,23 @@ export async function initAuth(): Promise<AuthResponse> {
 export async function tokenLogin(token: string): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/token-login', {
     token,
+  });
+  return data;
+}
+
+export async function webLogin(phone: string, password: string): Promise<AuthResponse> {
+  const { data } = await apiClient.post<AuthResponse>('/auth/web/login', {
+    phone,
+    password,
+  });
+  return data;
+}
+
+export async function webRegister(phone: string, password: string, first_name: string): Promise<AuthResponse> {
+  const { data } = await apiClient.post<AuthResponse>('/auth/web/register', {
+    phone,
+    password,
+    first_name,
   });
   return data;
 }

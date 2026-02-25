@@ -7,10 +7,11 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 class User(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "users"
 
-    telegram_user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False, index=True)
+    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True, index=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     language_code: Mapped[str] = mapped_column(String(10), default="uz", nullable=False)
 
     orders = relationship("Order", back_populates="user", lazy="selectin")

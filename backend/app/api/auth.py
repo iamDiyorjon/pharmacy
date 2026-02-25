@@ -1,15 +1,16 @@
 """
-T025 - Authentication endpoints.
+Authentication endpoints.
 
-POST /auth/init
-    Accepts raw Telegram initData, validates the HMAC signature, upserts
-    the user record, and returns a signed JWT access token that the Mini App
-    can use in subsequent API calls.
+POST /auth/init          — Telegram Mini App initData → JWT
+POST /auth/token-login   — Magic-link JWT → fresh JWT
+POST /auth/web/register  — Phone + password registration → JWT
+POST /auth/web/login     — Phone + password login → JWT
 
 JWT claims
 ----------
-sub   : str(telegram_user_id)
+sub   : str(telegram_user_id) or str(user.id) for web users
 uid   : str(user.id)           — internal UUID
+auth  : "tma" | "web"         — auth method
 iat   : issued-at (auto)
 exp   : expiry (auto)
 """
@@ -17,11 +18,13 @@ exp   : expiry (auto)
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError, jwt
+from passlib.context import CryptContext
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +44,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # ---------------------------------------------------------------------------
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days — typical for Mini Apps
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+PHONE_RE = re.compile(r"^\+?\d{9,15}$")
 
 
 # ---------------------------------------------------------------------------
@@ -65,22 +72,38 @@ class TokenLoginRequest(BaseModel):
     token: str = Field(..., description="JWT access token from magic link")
 
 
+class WebRegisterRequest(BaseModel):
+    """Body for POST /auth/web/register."""
+
+    phone: str = Field(..., min_length=9, max_length=20)
+    password: str = Field(..., min_length=4)
+    first_name: str = Field(..., min_length=1, max_length=100)
+
+
+class WebLoginRequest(BaseModel):
+    """Body for POST /auth/web/login."""
+
+    phone: str = Field(..., min_length=9, max_length=20)
+    password: str = Field(..., min_length=4)
+
+
 class TokenResponse(BaseModel):
-    """Response body for POST /auth/init."""
+    """Response body for auth endpoints."""
 
     access_token: str
     token_type: str = "bearer"
     expires_in: int = Field(description="Token lifetime in seconds")
     user_id: str = Field(description="Internal user UUID")
-    telegram_user_id: int
+    telegram_user_id: int | None = None
     is_staff: bool = Field(default=False, description="Whether user is registered staff")
+    first_name: str | None = None
 
 
 class UserProfile(BaseModel):
     """Minimal user profile embedded in the auth response (optional)."""
 
     id: str
-    telegram_user_id: int
+    telegram_user_id: int | None
     first_name: str
     last_name: str | None
     language_code: str
@@ -94,25 +117,42 @@ class UserProfile(BaseModel):
 
 
 def create_access_token(
-    telegram_user_id: int,
     user_uuid: uuid.UUID,
+    telegram_user_id: int | None = None,
+    auth_method: str = "tma",
 ) -> tuple[str, datetime]:
-    """Create a signed JWT access token.
-
-    Returns:
-        A tuple of ``(encoded_jwt, expiry_datetime)``.
-    """
+    """Create a signed JWT access token."""
     now = datetime.now(tz=timezone.utc)
     expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
+    sub = str(telegram_user_id) if telegram_user_id else str(user_uuid)
+
     payload = {
-        "sub": str(telegram_user_id),
+        "sub": sub,
         "uid": str(user_uuid),
+        "auth": auth_method,
         "iat": now,
         "exp": expire,
     }
     token: str = jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
     return token, expire
+
+
+# ---------------------------------------------------------------------------
+# Helper: check staff status
+# ---------------------------------------------------------------------------
+
+
+async def _check_staff(db: AsyncSession, telegram_user_id: int | None) -> bool:
+    if not telegram_user_id:
+        return False
+    staff_result = await db.execute(
+        select(PharmacyStaff).where(
+            PharmacyStaff.telegram_user_id == telegram_user_id,
+            PharmacyStaff.is_active.is_(True),
+        )
+    )
+    return staff_result.scalar_one_or_none() is not None
 
 
 # ---------------------------------------------------------------------------
@@ -133,16 +173,6 @@ async def auth_init(
     body: InitRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Validate Telegram Mini App ``initData`` and return a JWT access token.
-
-    The Mini App should call this endpoint on startup, passing
-    ``Telegram.WebApp.initData`` verbatim.  The returned ``access_token``
-    should be stored (e.g. in React state or ``sessionStorage``) and sent in
-    the ``Authorization: Bearer <token>`` header on subsequent requests.
-
-    The endpoint is intentionally NOT protected by :func:`~app.api.deps.get_current_user`
-    because it IS the authentication step.
-    """
     parsed = validate_init_data(body.init_data, settings.telegram_bot_token)
     if parsed is None:
         raise HTTPException(
@@ -194,17 +224,9 @@ async def auth_init(
             await db.refresh(user)
         logger.debug("auth_init: existing user telegram_user_id=%s", telegram_user_id)
 
-    # Check staff status -----------------------------------------------------
-    staff_result = await db.execute(
-        select(PharmacyStaff).where(
-            PharmacyStaff.telegram_user_id == telegram_user_id,
-            PharmacyStaff.is_active.is_(True),
-        )
-    )
-    is_staff = staff_result.scalar_one_or_none() is not None
+    is_staff = await _check_staff(db, telegram_user_id)
 
-    # Issue JWT -------------------------------------------------------------
-    token, expire = create_access_token(user.telegram_user_id, user.id)
+    token, expire = create_access_token(user.id, user.telegram_user_id, "tma")
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
     return TokenResponse(
@@ -214,6 +236,7 @@ async def auth_init(
         user_id=str(user.id),
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
+        first_name=user.first_name,
     )
 
 
@@ -235,25 +258,33 @@ async def token_login(
     body: TokenLoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Validate a JWT (e.g. from a ``/staff`` magic link) and return a fresh
-    access token with user/staff info.
-
-    This endpoint is NOT protected by ``get_current_user`` because it IS the
-    authentication step for browser-based staff access.
-    """
     try:
         payload = jwt.decode(body.token, settings.secret_key, algorithms=[ALGORITHM])
-        telegram_user_id = int(payload["sub"])
+        uid = payload.get("uid") or payload["sub"]
     except (JWTError, KeyError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
 
-    # Look up user ---------------------------------------------------------
-    stmt = select(User).where(User.telegram_user_id == telegram_user_id)
-    result = await db.execute(stmt)
-    user: User | None = result.scalar_one_or_none()
+    # Look up user by uid first, then by telegram_user_id for backward compat
+    user: User | None = None
+    try:
+        stmt = select(User).where(User.id == uuid.UUID(uid))
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+    except ValueError:
+        pass
+
+    if user is None:
+        # Backward compat: sub might be telegram_user_id
+        try:
+            tg_id = int(payload["sub"])
+            stmt = select(User).where(User.telegram_user_id == tg_id)
+            result = await db.execute(stmt)
+            user = result.scalar_one_or_none()
+        except (KeyError, ValueError):
+            pass
 
     if user is None:
         raise HTTPException(
@@ -261,17 +292,10 @@ async def token_login(
             detail="User not found",
         )
 
-    # Check staff status ---------------------------------------------------
-    staff_result = await db.execute(
-        select(PharmacyStaff).where(
-            PharmacyStaff.telegram_user_id == telegram_user_id,
-            PharmacyStaff.is_active.is_(True),
-        )
-    )
-    is_staff = staff_result.scalar_one_or_none() is not None
+    is_staff = await _check_staff(db, user.telegram_user_id)
 
-    # Issue fresh JWT ------------------------------------------------------
-    token, expire = create_access_token(user.telegram_user_id, user.id)
+    auth_method = payload.get("auth", "tma")
+    token, expire = create_access_token(user.id, user.telegram_user_id, auth_method)
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
     return TokenResponse(
@@ -281,4 +305,115 @@ async def token_login(
         user_id=str(user.id),
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
+        first_name=user.first_name,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /auth/web/register
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/web/register",
+    response_model=TokenResponse,
+    summary="Register with phone and password",
+    responses={
+        status.HTTP_200_OK: {"description": "Registration successful"},
+        status.HTTP_409_CONFLICT: {"description": "Phone already registered"},
+    },
+)
+async def web_register(
+    body: WebRegisterRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    phone = body.phone.strip().replace(" ", "")
+    if not PHONE_RE.match(phone):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid phone number format",
+        )
+
+    # Check if phone already taken
+    stmt = select(User).where(User.phone == phone)
+    result = await db.execute(stmt)
+    if result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Phone number already registered",
+        )
+
+    user = User(
+        first_name=body.first_name.strip(),
+        phone=phone,
+        password_hash=pwd_context.hash(body.password),
+        language_code="uz",
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    logger.info("web_register: created user phone=%s", phone)
+
+    token, expire = create_access_token(user.id, auth_method="web")
+    lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=lifetime_seconds,
+        user_id=str(user.id),
+        is_staff=False,
+        first_name=user.first_name,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /auth/web/login
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/web/login",
+    response_model=TokenResponse,
+    summary="Login with phone and password",
+    responses={
+        status.HTTP_200_OK: {"description": "Login successful"},
+        status.HTTP_401_UNAUTHORIZED: {"description": "Invalid credentials"},
+    },
+)
+async def web_login(
+    body: WebLoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    phone = body.phone.strip().replace(" ", "")
+
+    stmt = select(User).where(User.phone == phone)
+    result = await db.execute(stmt)
+    user: User | None = result.scalar_one_or_none()
+
+    if user is None or not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid phone or password",
+        )
+
+    if not pwd_context.verify(body.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid phone or password",
+        )
+
+    is_staff = await _check_staff(db, user.telegram_user_id)
+
+    token, expire = create_access_token(user.id, user.telegram_user_id, "web")
+    lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=lifetime_seconds,
+        user_id=str(user.id),
+        telegram_user_id=user.telegram_user_id,
+        is_staff=is_staff,
+        first_name=user.first_name,
     )

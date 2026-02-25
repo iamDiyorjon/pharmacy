@@ -12,6 +12,8 @@ const OrderStatus = lazy(() => import('./pages/OrderStatus'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Upload = lazy(() => import('./pages/Upload'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
 
 // Staff pages
 const StaffDashboard = lazy(() => import('./pages/staff/Dashboard'));
@@ -82,8 +84,11 @@ export default function App() {
   const navigate = useNavigate();
   const [isStaff, setIsStaff] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Initialize auth on mount — handle magic link token or Telegram initData
+  const isTelegram = !!window.Telegram?.WebApp?.initData;
+
+  // Initialize auth on mount — handle magic link token, web token, or Telegram initData
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const magicToken = params.get('token');
@@ -97,8 +102,8 @@ export default function App() {
             setIsStaff(true);
             localStorage.setItem('isStaff', 'true');
           }
-          // Remove token from URL without triggering a reload
           window.history.replaceState({}, '', window.location.pathname);
+          setIsAuthenticated(true);
           setAuthReady(true);
         })
         .catch(() => {
@@ -122,10 +127,10 @@ export default function App() {
           } else {
             localStorage.removeItem('isStaff');
           }
+          setIsAuthenticated(true);
           setAuthReady(true);
         })
         .catch(() => {
-          // Token expired/invalid — clear and fall through to TMA or guest
           localStorage.removeItem('staff_token');
           localStorage.removeItem('isStaff');
           setAuthReady(true);
@@ -133,26 +138,63 @@ export default function App() {
       return;
     }
 
+    // Check for web token (phone+password login)
+    const webToken = localStorage.getItem('web_token');
+    if (webToken) {
+      tokenLogin(webToken)
+        .then((res) => {
+          localStorage.setItem('web_token', res.access_token);
+          if (res.is_staff) {
+            setIsStaff(true);
+            localStorage.setItem('isStaff', 'true');
+          }
+          setIsAuthenticated(true);
+          setAuthReady(true);
+        })
+        .catch(() => {
+          localStorage.removeItem('web_token');
+          setAuthReady(true);
+        });
+      return;
+    }
+
     // Standard Telegram Mini App flow
-    initAuth()
-      .then((res) => {
-        if (res.is_staff) {
-          setIsStaff(true);
-          localStorage.setItem('isStaff', 'true');
-        } else {
-          localStorage.removeItem('isStaff');
-        }
-        setAuthReady(true);
-      })
-      .catch(() => {
-        // In dev/browser without Telegram, auth may fail — still render the UI
-        const stored = localStorage.getItem('isStaff');
-        if (stored === 'true') setIsStaff(true);
-        setAuthReady(true);
-      });
-  }, [navigate]);
+    if (isTelegram) {
+      initAuth()
+        .then((res) => {
+          if (res.is_staff) {
+            setIsStaff(true);
+            localStorage.setItem('isStaff', 'true');
+          } else {
+            localStorage.removeItem('isStaff');
+          }
+          setIsAuthenticated(true);
+          setAuthReady(true);
+        })
+        .catch(() => {
+          const stored = localStorage.getItem('isStaff');
+          if (stored === 'true') setIsStaff(true);
+          setAuthReady(true);
+        });
+    } else {
+      // Browser without Telegram — show login
+      setAuthReady(true);
+    }
+  }, [navigate, isTelegram]);
 
   if (!authReady) return <PageSpinner />;
+
+  // In browser without auth — show login/register
+  if (!isTelegram && !isAuthenticated) {
+    return (
+      <Suspense fallback={<PageSpinner />}>
+        <Routes>
+          <Route path="/register" element={<Register />} />
+          <Route path="*" element={<Login />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   return (
     <div style={styles.appWrapper}>
