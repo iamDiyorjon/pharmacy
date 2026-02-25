@@ -237,8 +237,11 @@ class MedicineService:
         db: AsyncSession,
         limit: int = 20,
         offset: int = 0,
-    ) -> list[Medicine]:
-        """List all medicines with availability."""
+    ) -> tuple[list[Medicine], int]:
+        """List all medicines with availability. Returns (medicines, total)."""
+        count_stmt = select(func.count(Medicine.id))
+        total = (await db.execute(count_stmt)).scalar() or 0
+
         stmt = (
             select(Medicine)
             .options(selectinload(Medicine.availability))
@@ -247,7 +250,7 @@ class MedicineService:
             .offset(offset)
         )
         result = await db.execute(stmt)
-        return list(result.scalars().unique().all())
+        return list(result.scalars().unique().all()), total
 
 
 medicine_service = MedicineService()
