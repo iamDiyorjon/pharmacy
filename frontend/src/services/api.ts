@@ -125,6 +125,7 @@ export interface CreateOrderItem {
   medicine_id?: string;
   medicine_name: string;
   quantity: number;
+  unit_price?: number | null;
 }
 
 export interface CreateOrderRequest {

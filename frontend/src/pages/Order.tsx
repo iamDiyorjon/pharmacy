@@ -76,6 +76,11 @@ export default function Order() {
   }
 
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
+  const totalPrice = items.reduce((s, i) => {
+    if (i.unit_price != null) return s + i.unit_price * i.quantity;
+    return s;
+  }, 0);
+  const allPriced = items.length > 0 && items.every((i) => i.unit_price != null);
 
   return (
     <div style={styles.page}>
@@ -129,29 +134,41 @@ export default function Order() {
             <div style={styles.itemList}>
               {items.map((item, idx) => (
                 <div key={idx} style={styles.itemCard}>
-                  <div style={styles.itemInfo}>
-                    <span style={styles.itemName}>{item.medicine_name}</span>
-                  </div>
-                  <div style={styles.itemActions}>
-                    <div style={styles.qtyControl}>
-                      <button
-                        style={styles.qtyBtn}
-                        onClick={() => updateQuantity(idx, item.quantity - 1)}
-                      >
-                        {'\u2212'}
-                      </button>
-                      <span style={styles.qtyValue}>{item.quantity}</span>
-                      <button
-                        style={{ ...styles.qtyBtn, ...styles.qtyBtnPlus }}
-                        onClick={() => updateQuantity(idx, item.quantity + 1)}
-                      >
-                        +
+                  <div style={styles.itemTop}>
+                    <div style={styles.itemInfo}>
+                      <span style={styles.itemName}>{item.medicine_name}</span>
+                    </div>
+                    <div style={styles.itemActions}>
+                      <div style={styles.qtyControl}>
+                        <button
+                          style={styles.qtyBtn}
+                          onClick={() => updateQuantity(idx, item.quantity - 1)}
+                        >
+                          {'\u2212'}
+                        </button>
+                        <span style={styles.qtyValue}>{item.quantity}</span>
+                        <button
+                          style={{ ...styles.qtyBtn, ...styles.qtyBtnPlus }}
+                          onClick={() => updateQuantity(idx, item.quantity + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button style={styles.removeBtn} onClick={() => removeItem(idx)}>
+                        {'\u00D7'}
                       </button>
                     </div>
-                    <button style={styles.removeBtn} onClick={() => removeItem(idx)}>
-                      {'\u00D7'}
-                    </button>
                   </div>
+                  {item.unit_price != null && (
+                    <div style={styles.itemPriceRow}>
+                      <span style={styles.itemPriceLabel}>
+                        {item.unit_price.toLocaleString()} x {item.quantity}
+                      </span>
+                      <span style={styles.itemPriceValue}>
+                        {(item.unit_price * item.quantity).toLocaleString()} {t('common.sum', "so'm")}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -170,6 +187,16 @@ export default function Order() {
           />
         </div>
 
+        {/* Total price */}
+        {allPriced && totalPrice > 0 && (
+          <div style={styles.totalCard}>
+            <span style={styles.totalLabel}>{t('order.total', 'Jami')}:</span>
+            <span style={styles.totalValue}>
+              {totalPrice.toLocaleString()} {t('common.sum', "so'm")}
+            </span>
+          </div>
+        )}
+
         {error && (
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
@@ -186,9 +213,13 @@ export default function Order() {
           disabled={submitting || items.length === 0}
         >
           {submitting ? t('order.submitting') : t('order.submit')}
-          {items.length > 0 && (
+          {allPriced && totalPrice > 0 ? (
+            <span style={styles.submitBadge}>
+              {totalPrice.toLocaleString()} {t('common.sum', "so'm")}
+            </span>
+          ) : items.length > 0 ? (
             <span style={styles.submitBadge}>{totalItems}</span>
-          )}
+          ) : null}
         </button>
       </div>
     </div>
@@ -287,12 +318,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   itemCard: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
+    flexDirection: 'column',
+    gap: 4,
     background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)',
     borderRadius: 10,
     padding: '10px 12px',
+  },
+  itemTop: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   itemInfo: {
     flex: 1,
@@ -405,5 +441,39 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     fontSize: 13,
     fontWeight: 700,
+  },
+  itemPriceRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 2,
+  },
+  itemPriceLabel: {
+    fontSize: 12,
+    color: 'var(--tg-theme-hint-color, #888)',
+  },
+  itemPriceValue: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#2e7d32',
+  },
+  totalCard: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 16px',
+    background: '#e8f5e9',
+    borderRadius: 12,
+    border: '1.5px solid #a5d6a7',
+  },
+  totalLabel: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: '#333',
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#2e7d32',
   },
 };

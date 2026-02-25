@@ -356,12 +356,20 @@ export default function Search() {
   function goToOrder() {
     navigate('/order', {
       state: {
-        items: cart.map((c) => ({
-          medicine_id: c.medicine.id,
-          medicine_name:
-            c.medicine.name_uz || c.medicine.name_ru || c.medicine.name,
-          quantity: c.quantity,
-        })),
+        items: cart.map((c) => {
+          // Get price for selected pharmacy (or cheapest across all)
+          const avail = selectedPharmacyId
+            ? c.medicine.availability.find((a) => a.pharmacy_id === selectedPharmacyId)
+            : null;
+          const price = avail?.price ?? null;
+          return {
+            medicine_id: c.medicine.id,
+            medicine_name:
+              c.medicine.name_uz || c.medicine.name_ru || c.medicine.name,
+            quantity: c.quantity,
+            unit_price: price,
+          };
+        }),
         pharmacy_id: selectedPharmacyId,
       },
     });
