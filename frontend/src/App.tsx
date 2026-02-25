@@ -1,8 +1,10 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { initAuth, tokenLogin } from './services/api';
+
+const StaffLayout = lazy(() => import('./components/StaffLayout'));
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
@@ -81,11 +83,13 @@ function BottomNav({ isStaff }: { isStaff: boolean }) {
 // ---------------------------------------------------------------------------
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isStaff, setIsStaff] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const isTelegram = !!window.Telegram?.WebApp?.initData;
+  const isStaffRoute = location.pathname.startsWith('/staff');
 
   // Initialize auth on mount — handle magic link token, web token, or Telegram initData
   useEffect(() => {
@@ -194,12 +198,27 @@ export default function App() {
     );
   }
 
+  // Staff desktop layout — sidebar nav, full width
+  if (isStaffRoute) {
+    return (
+      <Suspense fallback={<PageSpinner />}>
+        <StaffLayout>
+          <Routes>
+            <Route path="/staff" element={<StaffDashboard />} />
+            <Route path="/staff/order/:id" element={<StaffOrderDetail />} />
+            <Route path="/staff/medicines" element={<StaffMedicineCatalog />} />
+          </Routes>
+        </StaffLayout>
+      </Suspense>
+    );
+  }
+
+  // Customer layout — mobile 480px + bottom nav
   return (
     <div style={styles.appWrapper}>
       <main style={styles.main}>
         <Suspense fallback={<PageSpinner />}>
           <Routes>
-            {/* Customer routes */}
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<Search />} />
             <Route path="/order" element={<Order />} />
@@ -207,11 +226,6 @@ export default function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />
-
-            {/* Staff routes */}
-            <Route path="/staff" element={<StaffDashboard />} />
-            <Route path="/staff/order/:id" element={<StaffOrderDetail />} />
-            <Route path="/staff/medicines" element={<StaffMedicineCatalog />} />
           </Routes>
         </Suspense>
       </main>

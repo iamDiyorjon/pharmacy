@@ -4,60 +4,13 @@ import { useTranslation } from 'react-i18next';
 
 import { getStaffOrders, type StaffOrder, type OrderStatus } from '../../services/api';
 
-const STATUS_GROUPS: { status: OrderStatus; labelKey: string; color: string }[] = [
+const STATUS_TABS: { status: OrderStatus; labelKey: string; color: string }[] = [
   { status: 'created', labelKey: 'staff.newOrders', color: '#1565c0' },
   { status: 'priced', labelKey: 'orderStatus.status.priced', color: '#e65100' },
   { status: 'confirmed', labelKey: 'orderStatus.status.confirmed', color: '#283593' },
   { status: 'ready', labelKey: 'orderStatus.status.ready', color: '#1b5e20' },
 ];
 
-// ---------------------------------------------------------------------------
-// OrderRow
-// ---------------------------------------------------------------------------
-interface OrderRowProps {
-  order: StaffOrder;
-  onPress: () => void;
-}
-
-function OrderRow({ order, onPress }: OrderRowProps) {
-  const { t } = useTranslation();
-  return (
-    <div style={rowStyles.row} onClick={onPress} role="button" tabIndex={0}>
-      <div style={rowStyles.left}>
-        <span style={rowStyles.num}>#{order.order_number}</span>
-        <span style={rowStyles.user}>
-          {order.user_first_name}
-        </span>
-        <span style={rowStyles.type}>
-          {t(`order.orderType.${order.order_type}`)}
-        </span>
-      </div>
-      <div style={rowStyles.right}>
-        {order.total_price !== null && (
-          <span style={rowStyles.price}>
-            {order.total_price.toLocaleString()} {order.currency}
-          </span>
-        )}
-        {order.payment_method && (
-          <span style={rowStyles.payBadge}>
-            {order.payment_method === 'cash'
-              ? t('staff.paymentStatus.cash')
-              : order.payment_status === 'paid'
-              ? t('staff.paymentStatus.paid')
-              : t('staff.paymentStatus.pending')}
-          </span>
-        )}
-        <span style={rowStyles.time}>
-          {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Dashboard page
-// ---------------------------------------------------------------------------
 export default function StaffDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -65,6 +18,7 @@ export default function StaffDashboard() {
   const [ordersByStatus, setOrdersByStatus] = useState<
     Partial<Record<OrderStatus, StaffOrder[]>>
   >({});
+  const [activeTab, setActiveTab] = useState<OrderStatus>('created');
   const [loading, setLoading] = useState(true);
 
   const loadOrders = useCallback(async () => {
@@ -87,47 +41,131 @@ export default function StaffDashboard() {
     loadOrders();
   }, [loadOrders]);
 
-  // Refresh every 30 seconds
   useEffect(() => {
     const id = setInterval(loadOrders, 30_000);
     return () => clearInterval(id);
   }, [loadOrders]);
 
+  const activeOrders = ordersByStatus[activeTab] ?? [];
+
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <h1 style={styles.title}>{t('staff.dashboard')}</h1>
-        <button style={styles.medicinesBtn} onClick={() => navigate('/staff/medicines')}>
-          {t('staff.medicines')}
-        </button>
+        <h1 style={styles.title}>{t('staff.orders')}</h1>
       </header>
+
+      {/* Status tabs */}
+      <div style={styles.tabs}>
+        {STATUS_TABS.map(({ status, labelKey, color }) => {
+          const count = (ordersByStatus[status] ?? []).length;
+          const isActive = status === activeTab;
+          return (
+            <button
+              key={status}
+              style={{
+                ...styles.tab,
+                borderBottom: isActive ? `3px solid ${color}` : '3px solid transparent',
+                color: isActive ? color : '#888',
+                fontWeight: isActive ? 700 : 500,
+              }}
+              onClick={() => setActiveTab(status)}
+            >
+              {t(labelKey)}
+              <span style={{
+                ...styles.tabBadge,
+                background: isActive ? color : '#e0e0e0',
+                color: isActive ? '#fff' : '#666',
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {loading && <p style={styles.hint}>{t('common.loading')}</p>}
 
-      {!loading &&
-        STATUS_GROUPS.map(({ status, labelKey, color }) => {
-          const group = ordersByStatus[status] ?? [];
-          return (
-            <section key={status} style={styles.group}>
-              <div style={styles.groupHeader}>
-                <span style={{ ...styles.groupDot, background: color }} />
-                <h2 style={styles.groupTitle}>{t(labelKey)}</h2>
-                <span style={styles.groupCount}>{group.length}</span>
-              </div>
-              {group.length === 0 ? (
-                <p style={styles.emptyGroup}>—</p>
-              ) : (
-                group.map((o) => (
-                  <OrderRow
-                    key={o.id}
-                    order={o}
-                    onPress={() => navigate(`/staff/order/${o.id}`)}
-                  />
-                ))
-              )}
-            </section>
-          );
-        })}
+      {!loading && activeOrders.length === 0 && (
+        <p style={styles.emptyText}>—</p>
+      )}
+
+      {/* Data table */}
+      {!loading && activeOrders.length > 0 && (
+        <div style={styles.tableWrapper}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>#</th>
+                <th style={styles.th}>{t('staff.customerInfo')}</th>
+                <th style={styles.th}>{t('order.orderSummary')}</th>
+                <th style={styles.th}>{t('order.medicines')}</th>
+                <th style={styles.thRight}>{t('staff.totalPrice')}</th>
+                <th style={styles.th}>{t('orderStatus.paymentMethod.cash')}</th>
+                <th style={styles.thRight}>{t('orders.date')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeOrders.map((order) => (
+                <tr
+                  key={order.id}
+                  style={styles.tr}
+                  onClick={() => navigate(`/staff/order/${order.id}`)}
+                >
+                  <td style={styles.td}>
+                    <span style={styles.orderNum}>{order.order_number}</span>
+                  </td>
+                  <td style={styles.td}>
+                    <div style={styles.customerCell}>
+                      <span style={styles.customerName}>{order.user_first_name}</span>
+                      {order.user_phone && (
+                        <span style={styles.customerPhone}>{order.user_phone}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={styles.td}>
+                    <span style={styles.typeBadge}>
+                      {t(`order.orderType.${order.order_type}`)}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    <span style={styles.itemCount}>
+                      {order.items.length} {t('orders.items')}
+                    </span>
+                  </td>
+                  <td style={styles.tdRight}>
+                    {order.total_price !== null ? (
+                      <span style={styles.price}>
+                        {order.total_price.toLocaleString()} {order.currency}
+                      </span>
+                    ) : (
+                      <span style={styles.noPrice}>—</span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    {order.payment_method && (
+                      <span style={styles.payBadge}>
+                        {order.payment_method === 'cash'
+                          ? t('staff.paymentStatus.cash')
+                          : order.payment_status === 'paid'
+                          ? t('staff.paymentStatus.paid')
+                          : t('staff.paymentStatus.pending')}
+                      </span>
+                    )}
+                  </td>
+                  <td style={styles.tdRight}>
+                    <span style={styles.time}>
+                      {new Date(order.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -136,84 +174,144 @@ export default function StaffDashboard() {
 // Styles
 // ---------------------------------------------------------------------------
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100%', paddingBottom: 16 },
+  page: { minHeight: '100%' },
   header: {
-    padding: '16px 16px 0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 700 },
-  medicinesBtn: {
-    padding: '6px 14px',
-    borderRadius: 8,
-    border: '1.5px solid var(--tg-theme-button-color, #2196f3)',
-    background: 'transparent',
-    color: 'var(--tg-theme-button-color, #2196f3)',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
+  title: { margin: 0, fontSize: 24, fontWeight: 700 },
+  tabs: {
+    display: 'flex',
+    gap: 4,
+    borderBottom: '1px solid #e0e0e0',
+    marginBottom: 16,
   },
-  group: {
-    margin: '16px 16px 0',
-  },
-  groupHeader: {
+  tab: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
-  },
-  groupDot: {
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  groupTitle: {
-    margin: 0,
+    padding: '10px 16px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
     fontSize: 14,
-    fontWeight: 700,
-    flex: 1,
+    whiteSpace: 'nowrap',
+    transition: 'color 0.15s',
   },
-  groupCount: {
-    fontSize: 12,
+  tabBadge: {
+    fontSize: 11,
     fontWeight: 700,
-    background: 'var(--tg-theme-secondary-bg-color, #eee)',
     padding: '2px 8px',
-    borderRadius: 20,
-  },
-  emptyGroup: {
-    margin: 0,
-    color: 'var(--tg-theme-hint-color, #bbb)',
-    fontSize: 13,
-    padding: '4px 0',
+    borderRadius: 12,
+    minWidth: 20,
+    textAlign: 'center',
   },
   hint: {
     textAlign: 'center',
-    color: 'var(--tg-theme-hint-color, #999)',
-    padding: '24px',
+    color: '#999',
+    padding: 24,
     margin: 0,
   },
-};
-
-const rowStyles: Record<string, React.CSSProperties> = {
-  row: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)',
-    borderRadius: 8,
-    padding: '10px 12px',
-    marginBottom: 8,
-    cursor: 'pointer',
-    gap: 8,
+  emptyText: {
+    textAlign: 'center',
+    color: '#bbb',
+    padding: 40,
+    margin: 0,
+    fontSize: 16,
   },
-  left: { display: 'flex', flexDirection: 'column', gap: 3, flex: 1 },
-  num: { fontSize: 13, fontWeight: 700 },
-  user: { fontSize: 12, color: 'var(--tg-theme-text-color, #444)' },
-  type: { fontSize: 11, color: 'var(--tg-theme-hint-color, #888)' },
-  right: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 },
-  price: { fontSize: 13, fontWeight: 700 },
-  payBadge: { fontSize: 10, color: 'var(--tg-theme-hint-color, #888)' },
-  time: { fontSize: 11, color: 'var(--tg-theme-hint-color, #aaa)' },
+  tableWrapper: {
+    overflowX: 'auto',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: 14,
+  },
+  th: {
+    textAlign: 'left',
+    padding: '10px 12px',
+    fontWeight: 600,
+    fontSize: 12,
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    borderBottom: '1px solid #e0e0e0',
+    whiteSpace: 'nowrap',
+  },
+  thRight: {
+    textAlign: 'right',
+    padding: '10px 12px',
+    fontWeight: 600,
+    fontSize: 12,
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    borderBottom: '1px solid #e0e0e0',
+    whiteSpace: 'nowrap',
+  },
+  tr: {
+    cursor: 'pointer',
+    borderBottom: '1px solid #f0f0f0',
+    transition: 'background 0.1s',
+  },
+  td: {
+    padding: '12px',
+    verticalAlign: 'middle',
+  },
+  tdRight: {
+    padding: '12px',
+    verticalAlign: 'middle',
+    textAlign: 'right',
+  },
+  orderNum: {
+    fontWeight: 700,
+    fontSize: 13,
+    color: '#1565c0',
+  },
+  customerCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  customerName: {
+    fontWeight: 600,
+    fontSize: 14,
+  },
+  customerPhone: {
+    fontSize: 12,
+    color: '#888',
+  },
+  typeBadge: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '3px 10px',
+    borderRadius: 12,
+    background: '#e3f2fd',
+    color: '#1565c0',
+    whiteSpace: 'nowrap',
+  },
+  itemCount: {
+    fontSize: 13,
+    color: '#555',
+  },
+  price: {
+    fontWeight: 700,
+    fontSize: 14,
+    whiteSpace: 'nowrap',
+  },
+  noPrice: {
+    color: '#bbb',
+  },
+  payBadge: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: '#555',
+  },
+  time: {
+    fontSize: 13,
+    color: '#888',
+    whiteSpace: 'nowrap',
+  },
 };

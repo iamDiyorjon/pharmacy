@@ -41,13 +41,11 @@ export default function StaffOrderDetail() {
     try {
       const data = await getStaffOrder(id);
       setOrder(data);
-      // Pre-fill item prices map
       const prices: Record<string, string> = {};
       data.items.forEach((item) => {
         prices[item.id] = item.unit_price?.toString() ?? '';
       });
       setItemPrices(prices);
-      // Pre-fill total price if already set
       if (data.total_price !== null) {
         setTotalPrice(data.total_price.toString());
       }
@@ -77,7 +75,7 @@ export default function StaffOrderDetail() {
         total_price: parseFloat(totalPrice),
         items: items.length > 0 ? items : undefined,
       });
-      setOrder((prev) => prev ? { ...prev, ...updated } : null);
+      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
     } catch {
       setError(t('errors.networkError'));
     } finally {
@@ -90,7 +88,7 @@ export default function StaffOrderDetail() {
     setActionLoading(true);
     try {
       const updated = await readyOrder(id);
-      setOrder((prev) => prev ? { ...prev, ...updated } : null);
+      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
     } catch {
       setError(t('errors.networkError'));
     } finally {
@@ -103,7 +101,7 @@ export default function StaffOrderDetail() {
     setActionLoading(true);
     try {
       const updated = await completeOrder(id);
-      setOrder((prev) => prev ? { ...prev, ...updated } : null);
+      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
     } catch {
       setError(t('errors.networkError'));
     } finally {
@@ -116,7 +114,7 @@ export default function StaffOrderDetail() {
     setActionLoading(true);
     try {
       const updated = await rejectOrder(id, rejectionReason);
-      setOrder((prev) => prev ? { ...prev, ...updated } : null);
+      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
       setShowRejectForm(false);
     } catch {
       setError(t('errors.networkError'));
@@ -130,7 +128,7 @@ export default function StaffOrderDetail() {
     setUploadingImage(true);
     try {
       const updated = await uploadReplyImage(id, replyImageFile);
-      setOrder((prev) => prev ? { ...prev, ...updated } : null);
+      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
       setReplyImageFile(null);
     } catch {
       setError(t('errors.networkError'));
@@ -139,251 +137,355 @@ export default function StaffOrderDetail() {
     }
   }
 
-  if (loading) return <div style={styles.center}><p>{t('common.loading')}</p></div>;
-  if (error && !order) return <div style={styles.center}><p style={styles.errText}>{error}</p></div>;
+  if (loading)
+    return (
+      <div style={styles.center}>
+        <p>{t('common.loading')}</p>
+      </div>
+    );
+  if (error && !order)
+    return (
+      <div style={styles.center}>
+        <p style={styles.errText}>{error}</p>
+      </div>
+    );
   if (!order) return null;
 
   const isTerminal = ['completed', 'cancelled', 'rejected'].includes(order.status);
+  const canEditPrice = order.status === 'created' || order.status === 'priced';
+
+  // Status color
+  const statusColor: Record<string, string> = {
+    created: '#1565c0',
+    priced: '#e65100',
+    confirmed: '#283593',
+    ready: '#1b5e20',
+    completed: '#2e7d32',
+    cancelled: '#888',
+    rejected: '#c62828',
+  };
 
   return (
     <div style={styles.page}>
-      {/* Back button */}
+      {/* Back + Header */}
       <button style={styles.backBtn} onClick={() => navigate('/staff')}>
-        ← {t('common.back')}
+        {'\u2190'} {t('common.back')}
       </button>
 
       <header style={styles.header}>
         <h1 style={styles.title}>#{order.order_number}</h1>
-        <span style={styles.status}>{t(`orderStatus.status.${order.status}`)}</span>
+        <span
+          style={{
+            ...styles.statusBadge,
+            background: (statusColor[order.status] ?? '#888') + '18',
+            color: statusColor[order.status] ?? '#888',
+          }}
+        >
+          {t(`orderStatus.status.${order.status}`)}
+        </span>
       </header>
 
-      {/* Customer info */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>{t('staff.customerInfo')}</h2>
-        <Row label={t('settings.firstName')} value={order.user_first_name} />
-        {order.user_phone && <Row label={t('settings.phone')} value={order.user_phone} />}
-      </section>
+      {/* Two-column layout */}
+      <div className="staff-order-columns" style={styles.columns}>
+        {/* LEFT — Order info */}
+        <div style={styles.leftCol}>
+          {/* Customer info */}
+          <section style={styles.card}>
+            <h2 style={styles.cardTitle}>{t('staff.customerInfo')}</h2>
+            <InfoRow label={t('settings.firstName')} value={order.user_first_name} />
+            {order.user_phone && (
+              <InfoRow label={t('settings.phone')} value={order.user_phone} />
+            )}
+            <InfoRow
+              label={t('order.orderSummary')}
+              value={t(`order.orderType.${order.order_type}`)}
+            />
+          </section>
 
-      {/* Order items */}
-      {order.items.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>{t('order.medicines')}</h2>
-          {order.items.map((item) => (
-            <div key={item.id} style={styles.itemRow}>
-              <span style={styles.itemName}>{item.medicine_name}</span>
-              <span style={styles.itemQty}>×{item.quantity}</span>
-              {/* Per-item price input (visible when status is created or priced) */}
-              {(order.status === 'created' || order.status === 'priced') && (
+          {/* Order items table */}
+          {order.items.length > 0 && (
+            <section style={styles.card}>
+              <h2 style={styles.cardTitle}>{t('order.medicines')}</h2>
+              <table style={styles.itemTable}>
+                <thead>
+                  <tr>
+                    <th style={styles.itemTh}>{t('medicine.name')}</th>
+                    <th style={styles.itemThCenter}>{t('order.quantity')}</th>
+                    <th style={styles.itemThRight}>
+                      {canEditPrice ? t('staff.totalPrice') : t('staff.totalPrice')}
+                    </th>
+                    {canEditPrice && <th style={styles.itemThRight}>{t('orders.total')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => {
+                    const priceVal = parseFloat(itemPrices[item.id] ?? '0') || 0;
+                    return (
+                      <tr key={item.id}>
+                        <td style={styles.itemTd}>{item.medicine_name}</td>
+                        <td style={styles.itemTdCenter}>{item.quantity}</td>
+                        <td style={styles.itemTdRight}>
+                          {canEditPrice ? (
+                            <input
+                              style={styles.priceInput}
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={itemPrices[item.id] ?? ''}
+                              onChange={(e) =>
+                                setItemPrices((prev) => ({
+                                  ...prev,
+                                  [item.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : item.unit_price !== null ? (
+                            `${item.unit_price.toLocaleString()} ${order.currency}`
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        {canEditPrice && (
+                          <td style={styles.itemTdRight}>
+                            <span style={styles.subtotal}>
+                              {priceVal > 0
+                                ? `${(priceVal * item.quantity).toLocaleString()} ${order.currency}`
+                                : '—'}
+                            </span>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          )}
+
+          {/* Prescription images */}
+          {order.prescriptions.length > 0 && (
+            <section style={styles.card}>
+              <h2 style={styles.cardTitle}>{t('staff.prescriptionImage')}</h2>
+              <div style={styles.imageGrid}>
+                {order.prescriptions.map((p) => (
+                  <a key={p.id} href={p.download_url} target="_blank" rel="noreferrer">
+                    <img
+                      src={p.download_url}
+                      alt={p.file_name}
+                      style={styles.prescriptionImg}
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Reply image — editable for prescription orders in created/priced */}
+          {order.order_type === 'prescription' &&
+            canEditPrice && (
+              <section style={styles.card}>
+                <h2 style={styles.cardTitle}>
+                  {t('staff.replyImage', 'Javob rasmi (skrinshot)')}
+                </h2>
+                {order.reply_image_url && (
+                  <a
+                    href={getReplyImageUrl(order.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={styles.imageLink}
+                  >
+                    <img
+                      src={getReplyImageUrl(order.id)}
+                      alt={t('staff.replyImage', 'Javob rasmi')}
+                      style={styles.prescriptionImg}
+                      loading="lazy"
+                    />
+                  </a>
+                )}
                 <input
-                  style={styles.priceInput}
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={itemPrices[item.id] ?? ''}
-                  onChange={(e) =>
-                    setItemPrices((prev) => ({ ...prev, [item.id]: e.target.value }))
-                  }
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  style={styles.fileInput}
+                  onChange={(e) => setReplyImageFile(e.target.files?.[0] ?? null)}
                 />
-              )}
-              {item.unit_price !== null && order.status !== 'created' && order.status !== 'priced' && (
-                <span style={styles.itemPrice}>
-                  {item.unit_price.toLocaleString()} {order.currency}
-                </span>
-              )}
-            </div>
-          ))}
-        </section>
-      )}
+                {replyImageFile && <p style={styles.fileName}>{replyImageFile.name}</p>}
+                <button
+                  style={styles.btnSecondary}
+                  onClick={handleUploadReplyImage}
+                  disabled={uploadingImage || !replyImageFile}
+                >
+                  {uploadingImage
+                    ? t('common.loading')
+                    : order.reply_image_url
+                    ? t('staff.replaceImage', 'Rasmni almashtirish')
+                    : t('staff.uploadImage', 'Rasmni yuklash')}
+                </button>
+              </section>
+            )}
 
-      {/* Prescription images */}
-      {order.prescriptions.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>{t('staff.prescriptionImage')}</h2>
-          {order.prescriptions.map((p) => (
-            <div key={p.id} style={styles.prescriptionWrapper}>
-              <a href={p.download_url} target="_blank" rel="noreferrer">
-                <img
-                  src={p.download_url}
-                  alt={p.file_name}
-                  style={styles.prescriptionImg}
-                  loading="lazy"
-                />
-              </a>
-            </div>
-          ))}
-        </section>
-      )}
+          {/* Reply image read-only for non-editable statuses */}
+          {order.reply_image_url &&
+            order.order_type === 'prescription' &&
+            !canEditPrice && (
+              <section style={styles.card}>
+                <h2 style={styles.cardTitle}>
+                  {t('staff.replyImage', 'Javob rasmi')}
+                </h2>
+                <a
+                  href={getReplyImageUrl(order.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={styles.imageLink}
+                >
+                  <img
+                    src={getReplyImageUrl(order.id)}
+                    alt={t('staff.replyImage', 'Javob rasmi')}
+                    style={styles.prescriptionImg}
+                    loading="lazy"
+                  />
+                </a>
+              </section>
+            )}
 
-      {/* Reply image (staff screenshot) — only for prescription orders */}
-      {order.order_type === 'prescription' && (order.status === 'created' || order.status === 'priced') && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            {t('staff.replyImage', 'Javob rasmi (skrinshot)')}
-          </h2>
-
-          {/* Show existing reply image */}
-          {order.reply_image_url && (
-            <div style={styles.prescriptionWrapper}>
-              <a href={getReplyImageUrl(order.id)} target="_blank" rel="noreferrer">
-                <img
-                  src={getReplyImageUrl(order.id)}
-                  alt={t('staff.replyImage', 'Javob rasmi')}
-                  style={styles.prescriptionImg}
-                  loading="lazy"
-                />
-              </a>
-            </div>
-          )}
-
-          {/* File input + upload button */}
-          <input
-            type="file"
-            accept="image/jpeg,image/png"
-            style={styles.fileInput}
-            onChange={(e) => setReplyImageFile(e.target.files?.[0] ?? null)}
-          />
-          {replyImageFile && (
-            <p style={styles.fileName}>{replyImageFile.name}</p>
-          )}
-          <button
-            style={styles.primaryBtn}
-            onClick={handleUploadReplyImage}
-            disabled={uploadingImage || !replyImageFile}
-          >
-            {uploadingImage
-              ? t('common.loading')
-              : order.reply_image_url
-              ? t('staff.replaceImage', 'Rasmni almashtirish')
-              : t('staff.uploadImage', 'Rasmni yuklash')}
-          </button>
-        </section>
-      )}
-
-      {/* Show reply image in read-only mode for other statuses */}
-      {order.reply_image_url && order.order_type === 'prescription' && order.status !== 'created' && order.status !== 'priced' && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            {t('staff.replyImage', 'Javob rasmi')}
-          </h2>
-          <div style={styles.prescriptionWrapper}>
-            <a href={getReplyImageUrl(order.id)} target="_blank" rel="noreferrer">
-              <img
-                src={getReplyImageUrl(order.id)}
-                alt={t('staff.replyImage', 'Javob rasmi')}
-                style={styles.prescriptionImg}
-                loading="lazy"
-              />
-            </a>
-          </div>
-        </section>
-      )}
-
-      {/* Notes */}
-      {order.notes && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>{t('order.notes')}</h2>
-          <p style={styles.notes}>{order.notes}</p>
-        </section>
-      )}
-
-      {/* Pricing form (editable for created and priced) */}
-      {(order.status === 'created' || order.status === 'priced') && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            {order.status === 'priced' ? t('staff.editPrice', 'Narxni tahrirlash') : t('staff.priceOrder')}
-          </h2>
-          <input
-            style={styles.totalInput}
-            type="number"
-            min="0"
-            placeholder={t('staff.totalPrice')}
-            value={totalPrice}
-            onChange={(e) => setTotalPrice(e.target.value)}
-          />
-          <button
-            style={styles.primaryBtn}
-            onClick={handlePrice}
-            disabled={actionLoading || !totalPrice}
-          >
-            {order.status === 'priced' ? t('staff.updatePrice', 'Narxni yangilash') : t('staff.priceOrder')}
-          </button>
-        </section>
-      )}
-
-      {/* Payment status badge */}
-      {order.payment_method && (
-        <section style={styles.section}>
-          <Row
-            label={t('orderStatus.paymentMethod.cash')}
-            value={
-              order.payment_method === 'cash'
-                ? t('staff.paymentStatus.cash')
-                : order.payment_status === 'paid'
-                ? t('staff.paymentStatus.paid')
-                : t('staff.paymentStatus.pending')
-            }
-          />
-        </section>
-      )}
-
-      {error && <p style={styles.errText}>{error}</p>}
-
-      {/* Action buttons */}
-      {!isTerminal && (
-        <div style={styles.actions}>
-          {order.status === 'confirmed' && (
-            <button
-              style={styles.primaryBtn}
-              onClick={handleReady}
-              disabled={actionLoading}
-            >
-              {t('staff.markReady')}
-            </button>
-          )}
-          {order.status === 'ready' && (
-            <button
-              style={styles.primaryBtn}
-              onClick={handleComplete}
-              disabled={actionLoading}
-            >
-              {t('staff.markComplete')}
-            </button>
-          )}
-          {!showRejectForm && ['created', 'priced', 'confirmed'].includes(order.status) && (
-            <button
-              style={styles.dangerBtn}
-              onClick={() => setShowRejectForm(true)}
-              disabled={actionLoading}
-            >
-              {t('staff.rejectOrder')}
-            </button>
-          )}
-          {showRejectForm && (
-            <>
-              <textarea
-                style={styles.reasonInput}
-                placeholder={t('staff.rejectionReasonPlaceholder')}
-                value={rejectionReason}
-                rows={3}
-                onChange={(e) => setRejectionReason(e.target.value)}
-              />
-              <button
-                style={styles.dangerBtn}
-                onClick={handleReject}
-                disabled={actionLoading || !rejectionReason.trim()}
-              >
-                {t('staff.rejectOrder')}
-              </button>
-              <button
-                style={styles.secondaryBtn}
-                onClick={() => setShowRejectForm(false)}
-              >
-                {t('common.cancel')}
-              </button>
-            </>
+          {/* Notes */}
+          {order.notes && (
+            <section style={styles.card}>
+              <h2 style={styles.cardTitle}>{t('order.notes')}</h2>
+              <p style={styles.notes}>{order.notes}</p>
+            </section>
           )}
         </div>
-      )}
+
+        {/* RIGHT — Actions panel */}
+        <div style={styles.rightCol}>
+          {/* Pricing form */}
+          {canEditPrice && (
+            <section style={styles.actionCard}>
+              <h2 style={styles.cardTitle}>
+                {order.status === 'priced'
+                  ? t('staff.editPrice', 'Narxni tahrirlash')
+                  : t('staff.priceOrder')}
+              </h2>
+              <label style={styles.inputLabel}>{t('staff.totalPrice')}</label>
+              <input
+                style={styles.totalInput}
+                type="number"
+                min="0"
+                placeholder="0"
+                value={totalPrice}
+                onChange={(e) => setTotalPrice(e.target.value)}
+              />
+              <button
+                style={styles.btnPrimary}
+                onClick={handlePrice}
+                disabled={actionLoading || !totalPrice}
+              >
+                {order.status === 'priced'
+                  ? t('staff.updatePrice', 'Narxni yangilash')
+                  : t('staff.priceOrder')}
+              </button>
+            </section>
+          )}
+
+          {/* Payment info */}
+          {order.payment_method && (
+            <section style={styles.actionCard}>
+              <h2 style={styles.cardTitle}>{t('orderStatus.paymentMethod.cash')}</h2>
+              <span style={styles.payInfo}>
+                {order.payment_method === 'cash'
+                  ? t('staff.paymentStatus.cash')
+                  : order.payment_status === 'paid'
+                  ? t('staff.paymentStatus.paid')
+                  : t('staff.paymentStatus.pending')}
+              </span>
+            </section>
+          )}
+
+          {/* Price display for non-editable */}
+          {!canEditPrice && order.total_price !== null && (
+            <section style={styles.actionCard}>
+              <h2 style={styles.cardTitle}>{t('staff.totalPrice')}</h2>
+              <span style={styles.totalDisplay}>
+                {order.total_price.toLocaleString()} {order.currency}
+              </span>
+            </section>
+          )}
+
+          {error && <p style={styles.errText}>{error}</p>}
+
+          {/* Status action buttons */}
+          {!isTerminal && (
+            <section style={styles.actionCard}>
+              <h2 style={styles.cardTitle}>{t('staff.queue', 'Amallar')}</h2>
+
+              {order.status === 'confirmed' && (
+                <button
+                  style={styles.btnPrimary}
+                  onClick={handleReady}
+                  disabled={actionLoading}
+                >
+                  {t('staff.markReady')}
+                </button>
+              )}
+
+              {order.status === 'ready' && (
+                <button
+                  style={styles.btnPrimary}
+                  onClick={handleComplete}
+                  disabled={actionLoading}
+                >
+                  {t('staff.markComplete')}
+                </button>
+              )}
+
+              {!showRejectForm &&
+                ['created', 'priced', 'confirmed'].includes(order.status) && (
+                  <button
+                    style={styles.btnDanger}
+                    onClick={() => setShowRejectForm(true)}
+                    disabled={actionLoading}
+                  >
+                    {t('staff.rejectOrder')}
+                  </button>
+                )}
+
+              {showRejectForm && (
+                <>
+                  <textarea
+                    style={styles.reasonInput}
+                    placeholder={t('staff.rejectionReasonPlaceholder')}
+                    value={rejectionReason}
+                    rows={3}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                  />
+                  <button
+                    style={styles.btnDanger}
+                    onClick={handleReject}
+                    disabled={actionLoading || !rejectionReason.trim()}
+                  >
+                    {t('staff.rejectOrder')}
+                  </button>
+                  <button
+                    style={styles.btnGhost}
+                    onClick={() => setShowRejectForm(false)}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </>
+              )}
+            </section>
+          )}
+
+          {/* Rejection reason (terminal) */}
+          {order.rejection_reason && (
+            <section style={{ ...styles.actionCard, borderLeft: '3px solid #c62828' }}>
+              <h2 style={styles.cardTitle}>{t('staff.rejectionReason')}</h2>
+              <p style={styles.rejectionText}>{order.rejection_reason}</p>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -391,11 +493,11 @@ export default function StaffOrderDetail() {
 // ---------------------------------------------------------------------------
 // Sub-component
 // ---------------------------------------------------------------------------
-function Row({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '3px 0' }}>
-      <span style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #888)' }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 600 }}>{value}</span>
+    <div style={styles.infoRow}>
+      <span style={styles.infoLabel}>{label}</span>
+      <span style={styles.infoValue}>{value}</span>
     </div>
   );
 }
@@ -404,127 +506,168 @@ function Row({ label, value }: { label: string; value: string }) {
 // Styles
 // ---------------------------------------------------------------------------
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100%', paddingBottom: 24 },
-  center: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' },
+  page: { minHeight: '100%' },
+  center: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '60vh',
+  },
   backBtn: {
-    margin: '12px 16px 0',
-    padding: '6px 12px',
+    padding: '6px 0',
     border: 'none',
     background: 'transparent',
-    color: 'var(--tg-theme-button-color, #2196f3)',
+    color: '#1565c0',
     fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
     display: 'block',
+    marginBottom: 8,
   },
   header: {
-    padding: '8px 16px 0',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 24,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 700 },
-  status: {
-    fontSize: 12,
+  title: { margin: 0, fontSize: 24, fontWeight: 700 },
+  statusBadge: {
+    fontSize: 13,
     fontWeight: 700,
-    padding: '3px 10px',
+    padding: '4px 14px',
     borderRadius: 20,
-    background: 'var(--tg-theme-secondary-bg-color, #eee)',
   },
-  section: {
-    margin: '12px 16px 0',
-    padding: '12px 14px',
-    background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)',
-    borderRadius: 10,
+  columns: {
+    display: 'flex',
+    gap: 24,
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+  },
+  leftCol: {
+    flex: '1 1 500px',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
+    gap: 16,
   },
-  sectionTitle: { margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--tg-theme-hint-color, #666)' },
-  itemRow: {
+  rightCol: {
+    flex: '0 0 360px',
     display: 'flex',
-    alignItems: 'center',
-    gap: 8,
+    flexDirection: 'column',
+    gap: 16,
+    position: 'sticky',
+    top: 24,
   },
-  itemName: { flex: 1, fontSize: 14, fontWeight: 500 },
-  itemQty: { fontSize: 13, color: 'var(--tg-theme-hint-color, #888)' },
-  itemPrice: { fontSize: 13, fontWeight: 700 },
-  priceInput: {
-    width: 80,
-    padding: '4px 8px',
-    borderRadius: 6,
-    border: '1px solid var(--tg-theme-hint-color, #ccc)',
-    fontSize: 13,
-    textAlign: 'right',
-  },
-  totalInput: {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 8,
-    border: '1px solid var(--tg-theme-hint-color, #ccc)',
-    fontSize: 15,
-    fontWeight: 700,
-    background: 'var(--tg-theme-bg-color, #fff)',
-    color: 'var(--tg-theme-text-color, #222)',
-    boxSizing: 'border-box',
-  },
-  prescriptionWrapper: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    border: '1px solid var(--tg-theme-hint-color, #ddd)',
-  },
-  prescriptionImg: {
-    width: '100%',
-    maxHeight: 300,
-    objectFit: 'contain',
-    display: 'block',
-  },
-  notes: { margin: 0, fontSize: 14, color: 'var(--tg-theme-text-color, #333)' },
-  actions: {
-    padding: '16px',
+  card: {
+    background: '#f8f9fa',
+    borderRadius: 10,
+    padding: '16px 20px',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
   },
-  primaryBtn: {
-    padding: '12px 0',
+  actionCard: {
+    background: '#f8f9fa',
     borderRadius: 10,
-    border: 'none',
-    background: 'var(--tg-theme-button-color, #2196f3)',
-    color: 'var(--tg-theme-button-text-color, #fff)',
-    fontSize: 15,
+    padding: '16px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: 13,
     fontWeight: 700,
-    cursor: 'pointer',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  dangerBtn: {
-    padding: '12px 0',
-    borderRadius: 10,
-    border: '1.5px solid #e53935',
-    background: 'transparent',
-    color: '#e53935',
-    fontSize: 15,
-    fontWeight: 700,
-    cursor: 'pointer',
+  infoRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: '2px 0',
   },
-  secondaryBtn: {
-    padding: '10px 0',
-    borderRadius: 10,
-    border: 'none',
-    background: 'var(--tg-theme-secondary-bg-color, #eee)',
-    color: 'var(--tg-theme-hint-color, #666)',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  reasonInput: {
+  infoLabel: { fontSize: 14, color: '#888' },
+  infoValue: { fontSize: 14, fontWeight: 600 },
+
+  // Items table
+  itemTable: {
     width: '100%',
-    padding: '10px 12px',
-    borderRadius: 8,
-    border: '1px solid #e53935',
+    borderCollapse: 'collapse',
+  },
+  itemTh: {
+    textAlign: 'left',
+    padding: '8px 10px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#888',
+    borderBottom: '1px solid #e0e0e0',
+  },
+  itemThCenter: {
+    textAlign: 'center',
+    padding: '8px 10px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#888',
+    borderBottom: '1px solid #e0e0e0',
+  },
+  itemThRight: {
+    textAlign: 'right',
+    padding: '8px 10px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#888',
+    borderBottom: '1px solid #e0e0e0',
+  },
+  itemTd: {
+    padding: '10px',
     fontSize: 14,
-    resize: 'none',
-    fontFamily: 'inherit',
+    fontWeight: 500,
+    borderBottom: '1px solid #f0f0f0',
+  },
+  itemTdCenter: {
+    textAlign: 'center',
+    padding: '10px',
+    fontSize: 14,
+    borderBottom: '1px solid #f0f0f0',
+  },
+  itemTdRight: {
+    textAlign: 'right',
+    padding: '10px',
+    fontSize: 14,
+    borderBottom: '1px solid #f0f0f0',
+  },
+  priceInput: {
+    width: 100,
+    padding: '6px 10px',
+    borderRadius: 6,
+    border: '1px solid #ccc',
+    fontSize: 14,
+    textAlign: 'right',
     boxSizing: 'border-box',
+  },
+  subtotal: {
+    fontWeight: 600,
+    color: '#333',
+  },
+
+  // Images
+  imageGrid: {
+    display: 'flex',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  prescriptionImg: {
+    maxWidth: '100%',
+    maxHeight: 400,
+    objectFit: 'contain',
+    borderRadius: 8,
+    border: '1px solid #e0e0e0',
+    display: 'block',
+  },
+  imageLink: {
+    display: 'block',
   },
   fileInput: {
     width: '100%',
@@ -535,10 +678,102 @@ const styles: Record<string, React.CSSProperties> = {
   fileName: {
     margin: 0,
     fontSize: 12,
-    color: 'var(--tg-theme-hint-color, #888)',
+    color: '#888',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap' as const,
   },
-  errText: { color: '#e53935', fontSize: 13, textAlign: 'center', padding: '8px 16px' },
+
+  notes: { margin: 0, fontSize: 14, color: '#333' },
+
+  // Action buttons
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#888',
+  },
+  totalInput: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1px solid #ccc',
+    fontSize: 16,
+    fontWeight: 700,
+    boxSizing: 'border-box',
+  },
+  totalDisplay: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: '#1b5e20',
+  },
+  payInfo: {
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  btnPrimary: {
+    padding: '12px 0',
+    borderRadius: 8,
+    border: 'none',
+    background: '#1565c0',
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    width: '100%',
+  },
+  btnSecondary: {
+    padding: '10px 0',
+    borderRadius: 8,
+    border: '1px solid #1565c0',
+    background: '#fff',
+    color: '#1565c0',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    width: '100%',
+  },
+  btnDanger: {
+    padding: '12px 0',
+    borderRadius: 8,
+    border: '1.5px solid #c62828',
+    background: 'transparent',
+    color: '#c62828',
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    width: '100%',
+  },
+  btnGhost: {
+    padding: '10px 0',
+    borderRadius: 8,
+    border: 'none',
+    background: '#eee',
+    color: '#666',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    width: '100%',
+  },
+  reasonInput: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1px solid #c62828',
+    fontSize: 14,
+    resize: 'none',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  },
+  rejectionText: {
+    margin: 0,
+    fontSize: 14,
+    color: '#c62828',
+  },
+  errText: {
+    color: '#c62828',
+    fontSize: 13,
+    textAlign: 'center',
+    padding: '8px 0',
+    margin: 0,
+  },
 };

@@ -66,6 +66,25 @@
       body {
         -webkit-text-size-adjust: 100%;
       }
+
+      /* Staff desktop table hover */
+      .staff-order-columns {
+        flex-wrap: wrap;
+      }
+      table tbody tr:hover {
+        background: #f5f7fa;
+      }
+
+      /* Staff responsive: two-column → single column on mobile */
+      @media (max-width: 768px) {
+        .staff-order-columns {
+          flex-direction: column !important;
+        }
+        .staff-order-columns > div {
+          flex: 1 1 auto !important;
+          position: static !important;
+        }
+      }
     </style>
   </head>
   <body>
