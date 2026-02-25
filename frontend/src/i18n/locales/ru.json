@@ -1,0 +1,205 @@
+{
+  "nav": {
+    "home": "Главная",
+    "search": "Поиск",
+    "orders": "Заказы",
+    "settings": "Настройки",
+    "staff": "Персонал"
+  },
+  "home": {
+    "title": "Аптеки",
+    "subtitle": "Заказывайте лекарства заранее",
+    "open": "Открыто",
+    "closed": "Закрыто",
+    "openHours": "Часы работы",
+    "selectPharmacy": "Выберите аптеку",
+    "searchMedicines": "Найти лекарства"
+  },
+  "search": {
+    "title": "Поиск лекарств",
+    "placeholder": "Введите название лекарства...",
+    "minChars": "Введите минимум 2 символа",
+    "noResults": "Ничего не найдено",
+    "searching": "Поиск...",
+    "available": "В наличии",
+    "unavailable": "Нет в наличии",
+    "requiresPrescription": "Требуется рецепт",
+    "addToOrder": "Добавить в заказ",
+    "filterByPharmacy": "Фильтр по аптеке",
+    "allPharmacies": "Все аптеки",
+    "popular": "Популярные лекарства",
+    "quickSearch": "Быстрый поиск",
+    "from": "от"
+  },
+  "order": {
+    "title": "Заказ",
+    "newOrder": "Новый заказ",
+    "selectPharmacy": "Выберите аптеку",
+    "medicines": "Лекарства",
+    "medicine": "Лекарство",
+    "quantity": "Количество",
+    "notes": "Примечание",
+    "notesPlaceholder": "Дополнительная информация...",
+    "submit": "Оформить заказ",
+    "submitting": "Отправляется...",
+    "emptyItems": "Лекарства не добавлены",
+    "addMedicine": "Добавить лекарство",
+    "removeMedicine": "Удалить",
+    "orderSummary": "Итого",
+    "goToSearch": "Выбрать лекарства",
+    "orderType": {
+      "medicine_search": "Поиск лекарств",
+      "prescription": "Рецепт"
+    }
+  },
+  "orderStatus": {
+    "title": "Статус заказа",
+    "orderNumber": "Номер заказа",
+    "status": {
+      "created": "Новый",
+      "priced": "Цена установлена",
+      "confirmed": "Подтверждён",
+      "ready": "Готов к выдаче",
+      "completed": "Выполнен",
+      "cancelled": "Отменён",
+      "rejected": "Отклонён"
+    },
+    "totalPrice": "Итоговая цена",
+    "paymentMethod": {
+      "cash": "Наличные",
+      "click": "Click",
+      "payme": "Payme"
+    },
+    "paymentStatus": {
+      "pending": "Ожидание",
+      "paid": "Оплачено",
+      "failed": "Ошибка оплаты"
+    },
+    "confirmPrice": "Подтвердить цену",
+    "cancelOrder": "Отменить заказ",
+    "reorder": "Повторить заказ",
+    "pickupMessage": "Приходите в аптеку и заберите ваш заказ!",
+    "rejectionReason": "Причина отклонения",
+    "selectPayment": "Выберите способ оплаты",
+    "payAtPickup": "Оплата при получении",
+    "paymentLabel": "Способ оплаты",
+    "step": {
+      "created": "Создан",
+      "priced": "Цена",
+      "confirmed": "Оплата",
+      "ready": "Готов",
+      "completed": "Готово"
+    },
+    "waitingPharmacy": "Ожидаем установки цены аптекой",
+    "waitingReady": "Аптека готовит ваш заказ",
+    "waitingPickup": "Ваш заказ готов к выдаче!"
+  },
+  "orders": {
+    "title": "Мои заказы",
+    "active": "Активные",
+    "history": "История",
+    "empty": "Нет заказов",
+    "emptyActive": "Нет активных заказов",
+    "emptyHistory": "История заказов пуста",
+    "pharmacy": "Аптека",
+    "date": "Дата",
+    "total": "Итого",
+    "items": "шт.",
+    "viewDetails": "Подробнее"
+  },
+  "upload": {
+    "title": "Загрузка рецепта",
+    "instructions": "Загрузите фото рецепта",
+    "selectFile": "Выбрать файл",
+    "selectPharmacy": "Выберите аптеку",
+    "preview": "Предпросмотр",
+    "submit": "Отправить",
+    "submitting": "Отправляется...",
+    "maxSize": "Максимальный размер файла: 10 МБ",
+    "allowedFormats": "Форматы: JPEG или PNG"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "languages": {
+      "uz": "O'zbekcha",
+      "ru": "Русский",
+      "en": "English"
+    },
+    "profile": "Профиль",
+    "firstName": "Имя",
+    "lastName": "Фамилия",
+    "phone": "Телефон"
+  },
+  "pharmacy": {
+    "address": "Адрес",
+    "phone": "Телефон",
+    "hours": "Часы работы",
+    "status": {
+      "open": "Открыто",
+      "closed": "Закрыто"
+    }
+  },
+  "medicine": {
+    "name": "Название",
+    "category": "Категория",
+    "requiresPrescription": "Требуется рецепт",
+    "availability": "Наличие"
+  },
+  "staff": {
+    "dashboard": "Панель управления",
+    "orders": "Заказы",
+    "medicines": "Лекарства",
+    "newOrders": "Новые заказы",
+    "queue": "Очередь",
+    "priceOrder": "Установить цену",
+    "totalPrice": "Итоговая цена",
+    "itemBreakdown": "По позициям",
+    "markReady": "Готово к выдаче",
+    "markComplete": "Выдано",
+    "rejectOrder": "Отклонить",
+    "rejectionReason": "Причина отклонения",
+    "rejectionReasonPlaceholder": "Введите причину...",
+    "customerInfo": "Данные клиента",
+    "addMedicine": "Добавить лекарство",
+    "medicineName": "Название лекарства",
+    "medicineNameRu": "Название на русском",
+    "medicineNameUz": "Название на узбекском",
+    "description": "Описание",
+    "category": "Категория",
+    "requiresPrescription": "Требуется рецепт",
+    "available": "В наличии",
+    "unavailable": "Нет в наличии",
+    "toggleAvailability": "Изменить наличие",
+    "prescriptionImage": "Фото рецепта",
+    "paymentStatus": {
+      "paid": "Оплачено (онлайн)",
+      "cash": "Оплата наличными",
+      "pending": "Ожидание оплаты"
+    }
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Произошла ошибка",
+    "retry": "Повторить",
+    "cancel": "Отмена",
+    "confirm": "Подтвердить",
+    "save": "Сохранить",
+    "close": "Закрыть",
+    "back": "Назад",
+    "next": "Далее",
+    "submit": "Отправить",
+    "yes": "Да",
+    "no": "Нет",
+    "sum": "сум"
+  },
+  "errors": {
+    "networkError": "Ошибка сети. Пожалуйста, попробуйте снова.",
+    "authFailed": "Ошибка аутентификации",
+    "orderNotFound": "Заказ не найден",
+    "pharmacyClosed": "Аптека сейчас закрыта",
+    "fileTooLarge": "Файл слишком большой (макс. 10 МБ)",
+    "invalidFileType": "Неверный тип файла. Требуется JPEG или PNG",
+    "unknownError": "Произошла неизвестная ошибка"
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "orders": "Orders",
+    "settings": "Settings",
+    "staff": "Staff"
+  },
+  "home": {
+    "title": "Pharmacies",
+    "subtitle": "Order medicines in advance for quick pickup",
+    "open": "Open",
+    "closed": "Closed",
+    "openHours": "Opening hours",
+    "selectPharmacy": "Select pharmacy",
+    "searchMedicines": "Search medicines"
+  },
+  "search": {
+    "title": "Search Medicines",
+    "placeholder": "Enter medicine name...",
+    "minChars": "Enter at least 2 characters",
+    "noResults": "No results found",
+    "searching": "Searching...",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "requiresPrescription": "Prescription required",
+    "addToOrder": "Add to order",
+    "filterByPharmacy": "Filter by pharmacy",
+    "allPharmacies": "All pharmacies",
+    "popular": "Popular medicines",
+    "quickSearch": "Quick search",
+    "from": "from"
+  },
+  "order": {
+    "title": "Order",
+    "newOrder": "New Order",
+    "selectPharmacy": "Select pharmacy",
+    "medicines": "Medicines",
+    "medicine": "Medicine",
+    "quantity": "Quantity",
+    "notes": "Notes",
+    "notesPlaceholder": "Additional information...",
+    "submit": "Place Order",
+    "submitting": "Submitting...",
+    "emptyItems": "No medicines added",
+    "addMedicine": "Add medicine",
+    "removeMedicine": "Remove",
+    "orderSummary": "Order Summary",
+    "goToSearch": "Browse medicines",
+    "orderType": {
+      "medicine_search": "Medicine search",
+      "prescription": "Prescription"
+    }
+  },
+  "orderStatus": {
+    "title": "Order Status",
+    "orderNumber": "Order number",
+    "status": {
+      "created": "New",
+      "priced": "Price set",
+      "confirmed": "Confirmed",
+      "ready": "Ready for pickup",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "rejected": "Rejected"
+    },
+    "totalPrice": "Total price",
+    "paymentMethod": {
+      "cash": "Cash",
+      "click": "Click",
+      "payme": "Payme"
+    },
+    "paymentStatus": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed"
+    },
+    "confirmPrice": "Confirm price",
+    "cancelOrder": "Cancel order",
+    "reorder": "Reorder",
+    "pickupMessage": "Come to the pharmacy and pick up your order!",
+    "rejectionReason": "Rejection reason",
+    "selectPayment": "Select payment method",
+    "payAtPickup": "Pay at pickup",
+    "paymentLabel": "Payment method",
+    "step": {
+      "created": "Placed",
+      "priced": "Priced",
+      "confirmed": "Paid",
+      "ready": "Ready",
+      "completed": "Done"
+    },
+    "waitingPharmacy": "Waiting for pharmacy to set the price",
+    "waitingReady": "Pharmacy is preparing your order",
+    "waitingPickup": "Your order is ready for pickup!"
+  },
+  "orders": {
+    "title": "My Orders",
+    "active": "Active",
+    "history": "History",
+    "empty": "No orders",
+    "emptyActive": "No active orders",
+    "emptyHistory": "Order history is empty",
+    "pharmacy": "Pharmacy",
+    "date": "Date",
+    "total": "Total",
+    "items": "items",
+    "viewDetails": "View details"
+  },
+  "upload": {
+    "title": "Upload Prescription",
+    "instructions": "Upload a photo of your prescription",
+    "selectFile": "Select file",
+    "selectPharmacy": "Select pharmacy",
+    "preview": "Preview",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "maxSize": "Maximum file size: 10 MB",
+    "allowedFormats": "Formats: JPEG or PNG"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languages": {
+      "uz": "O'zbekcha",
+      "ru": "Русский",
+      "en": "English"
+    },
+    "profile": "Profile",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone"
+  },
+  "pharmacy": {
+    "address": "Address",
+    "phone": "Phone",
+    "hours": "Working hours",
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    }
+  },
+  "medicine": {
+    "name": "Name",
+    "category": "Category",
+    "requiresPrescription": "Prescription required",
+    "availability": "Availability"
+  },
+  "staff": {
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "medicines": "Medicines",
+    "newOrders": "New orders",
+    "queue": "Queue",
+    "priceOrder": "Set price",
+    "totalPrice": "Total price",
+    "itemBreakdown": "Item breakdown",
+    "markReady": "Mark ready",
+    "markComplete": "Mark completed",
+    "rejectOrder": "Reject",
+    "rejectionReason": "Rejection reason",
+    "rejectionReasonPlaceholder": "Enter reason...",
+    "customerInfo": "Customer info",
+    "addMedicine": "Add medicine",
+    "medicineName": "Medicine name",
+    "medicineNameRu": "Name in Russian",
+    "medicineNameUz": "Name in Uzbek",
+    "description": "Description",
+    "category": "Category",
+    "requiresPrescription": "Prescription required",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "toggleAvailability": "Toggle availability",
+    "prescriptionImage": "Prescription image",
+    "paymentStatus": {
+      "paid": "Paid online",
+      "cash": "Pay at counter",
+      "pending": "Payment pending"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "yes": "Yes",
+    "no": "No",
+    "sum": "UZS"
+  },
+  "errors": {
+    "networkError": "Network error. Please try again.",
+    "authFailed": "Authentication failed",
+    "orderNotFound": "Order not found",
+    "pharmacyClosed": "Pharmacy is currently closed",
+    "fileTooLarge": "File is too large (max 10 MB)",
+    "invalidFileType": "Invalid file type. JPEG or PNG required",
+    "unknownError": "An unknown error occurred"
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "nav": {
+    "home": "Bosh sahifa",
+    "search": "Qidirish",
+    "orders": "Buyurtmalar",
+    "settings": "Sozlamalar",
+    "staff": "Xodim"
+  },
+  "home": {
+    "title": "Dorixonalar",
+    "subtitle": "Dori-darmonlarni oldindan buyurtma qiling",
+    "open": "Ochiq",
+    "closed": "Yopiq",
+    "openHours": "Ish vaqti",
+    "selectPharmacy": "Dorixonani tanlang",
+    "searchMedicines": "Dori qidirish"
+  },
+  "search": {
+    "title": "Dori qidirish",
+    "placeholder": "Dori nomini kiriting...",
+    "minChars": "Kamida 2 ta harf kiriting",
+    "noResults": "Hech narsa topilmadi",
+    "searching": "Qidirilmoqda...",
+    "available": "Mavjud",
+    "unavailable": "Mavjud emas",
+    "requiresPrescription": "Retsept kerak",
+    "addToOrder": "Buyurtmaga qo'shish",
+    "filterByPharmacy": "Dorixona bo'yicha filtrlash",
+    "allPharmacies": "Barcha dorixonalar",
+    "popular": "Mashhur dorilar",
+    "quickSearch": "Tez qidirish",
+    "from": "dan"
+  },
+  "order": {
+    "title": "Buyurtma",
+    "newOrder": "Yangi buyurtma",
+    "selectPharmacy": "Dorixona tanlang",
+    "medicines": "Dorilar",
+    "medicine": "Dori",
+    "quantity": "Miqdor",
+    "notes": "Izoh",
+    "notesPlaceholder": "Qo'shimcha ma'lumot...",
+    "submit": "Buyurtma berish",
+    "submitting": "Yuborilmoqda...",
+    "emptyItems": "Hech qanday dori qo'shilmagan",
+    "addMedicine": "Dori qo'shish",
+    "removeMedicine": "O'chirish",
+    "orderSummary": "Buyurtma",
+    "goToSearch": "Dori tanlash",
+    "orderType": {
+      "medicine_search": "Dori qidirish",
+      "prescription": "Retsept"
+    }
+  },
+  "orderStatus": {
+    "title": "Buyurtma holati",
+    "orderNumber": "Buyurtma raqami",
+    "status": {
+      "created": "Yangi",
+      "priced": "Narx belgilandi",
+      "confirmed": "Tasdiqlandi",
+      "ready": "Olib ketishga tayyor",
+      "completed": "Bajarildi",
+      "cancelled": "Bekor qilindi",
+      "rejected": "Rad etildi"
+    },
+    "totalPrice": "Umumiy narx",
+    "paymentMethod": {
+      "cash": "Naqd pul",
+      "click": "Click",
+      "payme": "Payme"
+    },
+    "paymentStatus": {
+      "pending": "Kutilmoqda",
+      "paid": "To'landi",
+      "failed": "Muvaffaqiyatsiz"
+    },
+    "confirmPrice": "Narxni tasdiqlash",
+    "cancelOrder": "Buyurtmani bekor qilish",
+    "reorder": "Qayta buyurtma",
+    "pickupMessage": "Dorixonaga keling va buyurtmangizni olib keting!",
+    "rejectionReason": "Rad etish sababi",
+    "selectPayment": "To'lov usulini tanlang",
+    "payAtPickup": "Olib kelganda to'lash",
+    "paymentLabel": "To'lov usuli",
+    "step": {
+      "created": "Yaratildi",
+      "priced": "Narx",
+      "confirmed": "To'lov",
+      "ready": "Tayyor",
+      "completed": "Tayyor"
+    },
+    "waitingPharmacy": "Dorixona narx belgilashini kutmoqdamiz",
+    "waitingReady": "Dorixona buyurtmangizni tayyorlamoqda",
+    "waitingPickup": "Buyurtmangiz tayyor! Olib keting!"
+  },
+  "orders": {
+    "title": "Mening buyurtmalarim",
+    "active": "Faol",
+    "history": "Tarix",
+    "empty": "Buyurtmalar yo'q",
+    "emptyActive": "Faol buyurtmalar yo'q",
+    "emptyHistory": "Buyurtmalar tarixi yo'q",
+    "pharmacy": "Dorixona",
+    "date": "Sana",
+    "total": "Jami",
+    "items": "dona",
+    "viewDetails": "Batafsil"
+  },
+  "upload": {
+    "title": "Retsept yuklash",
+    "instructions": "Retsept rasmini yuklang",
+    "selectFile": "Fayl tanlash",
+    "selectPharmacy": "Dorixona tanlang",
+    "preview": "Ko'rinish",
+    "submit": "Yuborish",
+    "submitting": "Yuborilmoqda...",
+    "maxSize": "Maksimal fayl hajmi: 10 MB",
+    "allowedFormats": "JPEG yoki PNG formatida"
+  },
+  "settings": {
+    "title": "Sozlamalar",
+    "language": "Til",
+    "languages": {
+      "uz": "O'zbekcha",
+      "ru": "Русский",
+      "en": "English"
+    },
+    "profile": "Profil",
+    "firstName": "Ism",
+    "lastName": "Familiya",
+    "phone": "Telefon"
+  },
+  "pharmacy": {
+    "address": "Manzil",
+    "phone": "Telefon",
+    "hours": "Ish vaqti",
+    "status": {
+      "open": "Ochiq",
+      "closed": "Yopiq"
+    }
+  },
+  "medicine": {
+    "name": "Nomi",
+    "category": "Kategoriya",
+    "requiresPrescription": "Retsept talab qilinadi",
+    "availability": "Mavjudligi"
+  },
+  "staff": {
+    "dashboard": "Boshqaruv paneli",
+    "orders": "Buyurtmalar",
+    "medicines": "Dorilar",
+    "newOrders": "Yangi buyurtmalar",
+    "queue": "Navbat",
+    "priceOrder": "Narx belgilash",
+    "totalPrice": "Umumiy narx",
+    "itemBreakdown": "Mahsulotlar bo'yicha",
+    "markReady": "Tayyorligini bildirish",
+    "markComplete": "Bajarildi",
+    "rejectOrder": "Rad etish",
+    "rejectionReason": "Rad etish sababi",
+    "rejectionReasonPlaceholder": "Sababni kiriting...",
+    "customerInfo": "Mijoz ma'lumotlari",
+    "addMedicine": "Dori qo'shish",
+    "medicineName": "Dori nomi",
+    "medicineNameRu": "Rus tilida nomi",
+    "medicineNameUz": "O'zbek tilida nomi",
+    "description": "Tavsif",
+    "category": "Kategoriya",
+    "requiresPrescription": "Retsept kerakmi",
+    "available": "Mavjud",
+    "unavailable": "Mavjud emas",
+    "toggleAvailability": "Mavjudligini o'zgartirish",
+    "prescriptionImage": "Retsept rasmi",
+    "paymentStatus": {
+      "paid": "To'langan (online)",
+      "cash": "Kassada to'lanadi",
+      "pending": "To'lov kutilmoqda"
+    }
+  },
+  "common": {
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik yuz berdi",
+    "retry": "Qayta urinish",
+    "cancel": "Bekor qilish",
+    "confirm": "Tasdiqlash",
+    "save": "Saqlash",
+    "close": "Yopish",
+    "back": "Orqaga",
+    "next": "Keyingi",
+    "submit": "Yuborish",
+    "yes": "Ha",
+    "no": "Yo'q",
+    "sum": "so'm"
+  },
+  "errors": {
+    "networkError": "Tarmoq xatosi. Iltimos, qayta urinib ko'ring.",
+    "authFailed": "Autentifikatsiya muvaffaqiyatsiz",
+    "orderNotFound": "Buyurtma topilmadi",
+    "pharmacyClosed": "Dorixona hozir yopiq",
+    "fileTooLarge": "Fayl hajmi juda katta (max 10 MB)",
+    "invalidFileType": "Noto'g'ri fayl turi. JPEG yoki PNG kerak",
+    "unknownError": "Noma'lum xato yuz berdi"
+  }
+}
