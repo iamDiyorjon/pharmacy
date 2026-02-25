@@ -11,13 +11,18 @@ from datetime import time
 
 from sqlalchemy import select
 
+from passlib.context import CryptContext
+from sqlalchemy import select
+
 from app.db.session import async_session
 from app.models.medicine import Medicine, MedicineAvailability
 from app.models.order import Order, OrderItem  # noqa: F401
 from app.models.pharmacy import Pharmacy
 from app.models.prescription import Prescription  # noqa: F401
-from app.models.staff import PharmacyStaff  # noqa: F401
-from app.models.user import User  # noqa: F401
+from app.models.staff import PharmacyStaff
+from app.models.user import User
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -136,10 +141,88 @@ async def seed_medicines(pharmacies: list[Pharmacy]) -> None:
     logger.info("Medicines: %d processed", len(MEDICINES))
 
 
+# Staff accounts: one per pharmacy + superadmin
+STAFF_ACCOUNTS = [
+    {
+        "phone": "+998915022123",
+        "password": "adika2026",
+        "first_name": "ADIKA Admin",
+        "pharmacy_name": "ADIKA SHIFO-NUR MCHJ",
+        "role": "admin",
+    },
+    {
+        "phone": "+998900018777",
+        "password": "tojiniso2026",
+        "first_name": "TOJINISO Admin",
+        "pharmacy_name": "TOJINISO ONA FARM MCHJ",
+        "role": "admin",
+    },
+    {
+        "phone": "+998901234567",
+        "password": "superadmin2026",
+        "first_name": "Super Admin",
+        "pharmacy_name": "ADIKA SHIFO-NUR MCHJ",  # superadmin linked to first pharmacy
+        "role": "superadmin",
+    },
+]
+
+
+async def seed_staff(pharmacies: list[Pharmacy]) -> None:
+    """Create staff user accounts with phone+password for web login."""
+    pharmacy_map = {p.name: p for p in pharmacies}
+
+    async with async_session() as session:
+        for account in STAFF_ACCOUNTS:
+            # Check if user with this phone already exists
+            result = await session.execute(
+                select(User).where(User.phone == account["phone"])
+            )
+            user = result.scalar_one_or_none()
+
+            if user is None:
+                user = User(
+                    first_name=account["first_name"],
+                    phone=account["phone"],
+                    password_hash=pwd_context.hash(account["password"]),
+                    language_code="uz",
+                )
+                session.add(user)
+                await session.flush()
+                logger.info("Created user: %s (%s)", account["first_name"], account["phone"])
+            else:
+                logger.info("User '%s' already exists, skipping", account["phone"])
+
+            # Link to PharmacyStaff
+            result = await session.execute(
+                select(PharmacyStaff).where(PharmacyStaff.user_id == user.id)
+            )
+            staff = result.scalar_one_or_none()
+
+            if staff is None:
+                pharmacy = pharmacy_map.get(account["pharmacy_name"])
+                if pharmacy:
+                    staff = PharmacyStaff(
+                        pharmacy_id=pharmacy.id,
+                        user_id=user.id,
+                        name=account["first_name"],
+                        role=account["role"],
+                        is_active=True,
+                    )
+                    session.add(staff)
+                    logger.info("Created staff: %s -> %s", account["first_name"], account["pharmacy_name"])
+            else:
+                logger.info("Staff for '%s' already exists, skipping", account["phone"])
+
+        await session.commit()
+
+    logger.info("Staff accounts: %d processed", len(STAFF_ACCOUNTS))
+
+
 async def main() -> None:
     logger.info("Running seed script...")
     pharmacies = await seed_pharmacies()
     await seed_medicines(pharmacies)
+    await seed_staff(pharmacies)
     logger.info("Seed complete!")
 
 

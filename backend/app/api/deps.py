@@ -168,18 +168,27 @@ async def get_current_staff(
 ) -> PharmacyStaff:
     """Verify that the authenticated user is an active PharmacyStaff member.
 
-    Eagerly loads the related :class:`Pharmacy` so callers can access
-    ``staff.pharmacy`` without triggering lazy-load errors.
-
-    Raises:
-        HTTPException 403: if the user is not registered as active staff.
+    Looks up staff by user_id (web auth) or telegram_user_id (Telegram auth).
+    Eagerly loads the related Pharmacy.
     """
+    from sqlalchemy import or_
+
+    conditions = [PharmacyStaff.is_active.is_(True)]
+    id_conditions = []
+    if current_user.id:
+        id_conditions.append(PharmacyStaff.user_id == current_user.id)
+    if current_user.telegram_user_id:
+        id_conditions.append(PharmacyStaff.telegram_user_id == current_user.telegram_user_id)
+
+    if not id_conditions:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not registered as pharmacy staff",
+        )
+
     stmt = (
         select(PharmacyStaff)
-        .where(
-            PharmacyStaff.telegram_user_id == current_user.telegram_user_id,
-            PharmacyStaff.is_active.is_(True),
-        )
+        .where(*conditions, or_(*id_conditions))
         .options(selectinload(PharmacyStaff.pharmacy))
     )
     result = await db.execute(stmt)

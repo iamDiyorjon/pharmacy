@@ -143,12 +143,23 @@ def create_access_token(
 # ---------------------------------------------------------------------------
 
 
-async def _check_staff(db: AsyncSession, telegram_user_id: int | None) -> bool:
-    if not telegram_user_id:
+async def _check_staff(
+    db: AsyncSession,
+    telegram_user_id: int | None = None,
+    user_id: uuid.UUID | None = None,
+) -> bool:
+    from sqlalchemy import or_
+
+    conditions = []
+    if telegram_user_id:
+        conditions.append(PharmacyStaff.telegram_user_id == telegram_user_id)
+    if user_id:
+        conditions.append(PharmacyStaff.user_id == user_id)
+    if not conditions:
         return False
     staff_result = await db.execute(
         select(PharmacyStaff).where(
-            PharmacyStaff.telegram_user_id == telegram_user_id,
+            or_(*conditions),
             PharmacyStaff.is_active.is_(True),
         )
     )
@@ -224,7 +235,7 @@ async def auth_init(
             await db.refresh(user)
         logger.debug("auth_init: existing user telegram_user_id=%s", telegram_user_id)
 
-    is_staff = await _check_staff(db, telegram_user_id)
+    is_staff = await _check_staff(db, telegram_user_id=telegram_user_id, user_id=user.id)
 
     token, expire = create_access_token(user.id, user.telegram_user_id, "tma")
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -292,7 +303,7 @@ async def token_login(
             detail="User not found",
         )
 
-    is_staff = await _check_staff(db, user.telegram_user_id)
+    is_staff = await _check_staff(db, telegram_user_id=user.telegram_user_id, user_id=user.id)
 
     auth_method = payload.get("auth", "tma")
     token, expire = create_access_token(user.id, user.telegram_user_id, auth_method)
@@ -305,64 +316,6 @@ async def token_login(
         user_id=str(user.id),
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
-        first_name=user.first_name,
-    )
-
-
-# ---------------------------------------------------------------------------
-# POST /auth/web/register
-# ---------------------------------------------------------------------------
-
-
-@router.post(
-    "/web/register",
-    response_model=TokenResponse,
-    summary="Register with phone and password",
-    responses={
-        status.HTTP_200_OK: {"description": "Registration successful"},
-        status.HTTP_409_CONFLICT: {"description": "Phone already registered"},
-    },
-)
-async def web_register(
-    body: WebRegisterRequest,
-    db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    phone = body.phone.strip().replace(" ", "")
-    if not PHONE_RE.match(phone):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid phone number format",
-        )
-
-    # Check if phone already taken
-    stmt = select(User).where(User.phone == phone)
-    result = await db.execute(stmt)
-    if result.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Phone number already registered",
-        )
-
-    user = User(
-        first_name=body.first_name.strip(),
-        phone=phone,
-        password_hash=pwd_context.hash(body.password),
-        language_code="uz",
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    logger.info("web_register: created user phone=%s", phone)
-
-    token, expire = create_access_token(user.id, auth_method="web")
-    lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
-
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        expires_in=lifetime_seconds,
-        user_id=str(user.id),
-        is_staff=False,
         first_name=user.first_name,
     )
 
@@ -403,7 +356,7 @@ async def web_login(
             detail="Invalid phone or password",
         )
 
-    is_staff = await _check_staff(db, user.telegram_user_id)
+    is_staff = await _check_staff(db, telegram_user_id=user.telegram_user_id, user_id=user.id)
 
     token, expire = create_access_token(user.id, user.telegram_user_id, "web")
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60

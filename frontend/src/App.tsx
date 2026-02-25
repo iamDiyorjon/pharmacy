@@ -13,7 +13,6 @@ const Orders = lazy(() => import('./pages/Orders'));
 const Upload = lazy(() => import('./pages/Upload'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
 
 // Staff pages
 const StaffDashboard = lazy(() => import('./pages/staff/Dashboard'));
@@ -189,7 +188,6 @@ export default function App() {
     return (
       <Suspense fallback={<PageSpinner />}>
         <Routes>
-          <Route path="/register" element={<Register />} />
           <Route path="*" element={<Login />} />
         </Routes>
       </Suspense>

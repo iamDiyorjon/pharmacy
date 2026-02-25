@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { webLogin } from '../services/api';
 
@@ -71,11 +71,8 @@ export default function Login() {
           {loading ? '...' : t('auth.login', 'Kirish')}
         </button>
 
-        <p style={styles.link}>
-          {t('auth.noAccount', 'Hisobingiz yo\'qmi?')}{' '}
-          <Link to="/register" style={styles.linkText}>
-            {t('auth.register', 'Ro\'yxatdan o\'tish')}
-          </Link>
+        <p style={styles.hint}>
+          {t('auth.staffOnly', 'Faqat apteka xodimlari uchun')}
         </p>
       </form>
     </div>
@@ -163,15 +160,10 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     fontSize: 14,
   },
-  link: {
+  hint: {
     textAlign: 'center',
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: '#aaa',
     margin: 0,
-  },
-  linkText: {
-    color: '#1976d2',
-    fontWeight: 600,
-    textDecoration: 'none',
   },
 };
