@@ -212,6 +212,7 @@ export default function OrderStatus() {
   // Status context message
   const statusMessage =
     order.status === 'created' ? t('orderStatus.waitingPharmacy') :
+    order.status === 'priced' ? t('orderStatus.priceReady', 'Narx tayyor! Tasdiqlang.') :
     order.status === 'confirmed' ? t('orderStatus.waitingReady') :
     order.status === 'ready' ? t('orderStatus.waitingPickup') :
     null;

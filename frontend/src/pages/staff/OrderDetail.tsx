@@ -41,6 +41,10 @@ export default function StaffOrderDetail() {
         prices[item.id] = item.unit_price?.toString() ?? '';
       });
       setItemPrices(prices);
+      // Pre-fill total price if already set
+      if (data.total_price !== null) {
+        setTotalPrice(data.total_price.toString());
+      }
     } catch {
       setError(t('errors.orderNotFound'));
     } finally {
@@ -148,8 +152,8 @@ export default function StaffOrderDetail() {
             <div key={item.id} style={styles.itemRow}>
               <span style={styles.itemName}>{item.medicine_name}</span>
               <span style={styles.itemQty}>×{item.quantity}</span>
-              {/* Per-item price input (visible when status is created) */}
-              {order.status === 'created' && (
+              {/* Per-item price input (visible when status is created or priced) */}
+              {(order.status === 'created' || order.status === 'priced') && (
                 <input
                   style={styles.priceInput}
                   type="number"
@@ -161,7 +165,7 @@ export default function StaffOrderDetail() {
                   }
                 />
               )}
-              {item.unit_price !== null && order.status !== 'created' && (
+              {item.unit_price !== null && order.status !== 'created' && order.status !== 'priced' && (
                 <span style={styles.itemPrice}>
                   {item.unit_price.toLocaleString()} {order.currency}
                 </span>
@@ -198,10 +202,12 @@ export default function StaffOrderDetail() {
         </section>
       )}
 
-      {/* Pricing form */}
-      {order.status === 'created' && (
+      {/* Pricing form (editable for created and priced) */}
+      {(order.status === 'created' || order.status === 'priced') && (
         <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>{t('staff.priceOrder')}</h2>
+          <h2 style={styles.sectionTitle}>
+            {order.status === 'priced' ? t('staff.editPrice', 'Narxni tahrirlash') : t('staff.priceOrder')}
+          </h2>
           <input
             style={styles.totalInput}
             type="number"
@@ -215,7 +221,7 @@ export default function StaffOrderDetail() {
             onClick={handlePrice}
             disabled={actionLoading || !totalPrice}
           >
-            {t('staff.priceOrder')}
+            {order.status === 'priced' ? t('staff.updatePrice', 'Narxni yangilash') : t('staff.priceOrder')}
           </button>
         </section>
       )}

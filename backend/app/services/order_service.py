@@ -3,6 +3,7 @@
 import random
 import string
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select, func, and_
@@ -18,7 +19,7 @@ from app.models.order import (
     PaymentStatus,
 )
 from app.models.pharmacy import Pharmacy
-from app.models.medicine import Medicine
+from app.models.medicine import Medicine, MedicineAvailability
 
 
 class OrderService:
@@ -68,14 +69,51 @@ class OrderService:
         await db.flush()
 
         if items:
+            # Collect medicine_ids to look up catalog prices in one query
+            medicine_ids = [
+                i["medicine_id"] for i in items if i.get("medicine_id")
+            ]
+            price_map: dict[str, Decimal] = {}
+            if medicine_ids:
+                avail_stmt = select(MedicineAvailability).where(
+                    and_(
+                        MedicineAvailability.pharmacy_id == pharmacy_id,
+                        MedicineAvailability.medicine_id.in_(medicine_ids),
+                        MedicineAvailability.is_available == True,
+                        MedicineAvailability.price.isnot(None),
+                    )
+                )
+                avail_result = await db.execute(avail_stmt)
+                for avail in avail_result.scalars().all():
+                    price_map[str(avail.medicine_id)] = Decimal(str(avail.price))
+
+            all_priced = True
+            total = Decimal("0")
+
             for item_data in items:
+                med_id = item_data.get("medicine_id")
+                catalog_price = price_map.get(med_id) if med_id else None
+                qty = item_data.get("quantity", 1)
+
                 order_item = OrderItem(
                     order_id=order.id,
-                    medicine_id=item_data.get("medicine_id"),
+                    medicine_id=med_id,
                     medicine_name=item_data.get("medicine_name", ""),
-                    quantity=item_data.get("quantity", 1),
+                    quantity=qty,
+                    unit_price=catalog_price,
                 )
                 db.add(order_item)
+
+                if catalog_price is not None:
+                    total += catalog_price * qty
+                else:
+                    all_priced = False
+
+            # Auto-set to PRICED if all items have catalog prices
+            if all_priced and items:
+                order.total_price = total
+                order.status = OrderStatus.PRICED
+                order.priced_at = now
 
         await db.commit()
 
@@ -245,10 +283,10 @@ class OrderService:
         order = await self._get_order_or_raise(db, order_id)
         self._validate_staff(order, staff_id)
 
-        if order.status != OrderStatus.CREATED:
+        if order.status not in (OrderStatus.CREATED, OrderStatus.PRICED):
             raise ValueError(
                 f"Cannot price order in '{order.status.value}' state. "
-                f"Order must be in 'created' state to price."
+                f"Order must be in 'created' or 'priced' state to price."
             )
 
         order.status = OrderStatus.PRICED
