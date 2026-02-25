@@ -214,8 +214,8 @@ export default function StaffOrderDetail() {
         </section>
       )}
 
-      {/* Reply image (staff screenshot) */}
-      {(order.status === 'created' || order.status === 'priced') && (
+      {/* Reply image (staff screenshot) — only for prescription orders */}
+      {order.order_type === 'prescription' && (order.status === 'created' || order.status === 'priced') && (
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>
             {t('staff.replyImage', 'Javob rasmi (skrinshot)')}
@@ -260,7 +260,7 @@ export default function StaffOrderDetail() {
       )}
 
       {/* Show reply image in read-only mode for other statuses */}
-      {order.reply_image_url && order.status !== 'created' && order.status !== 'priced' && (
+      {order.reply_image_url && order.order_type === 'prescription' && order.status !== 'created' && order.status !== 'priced' && (
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>
             {t('staff.replyImage', 'Javob rasmi')}

@@ -361,6 +361,14 @@ async def upload_reply_image(
     if order is None or order.pharmacy_id != staff.pharmacy_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
+    # Only allow for prescription-type orders
+    order_type = order.order_type.value if hasattr(order.order_type, "value") else order.order_type
+    if order_type != "prescription":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reply image can only be uploaded for prescription orders",
+        )
+
     # Only allow upload for created / priced orders
     order_status = order.status.value if hasattr(order.status, "value") else order.status
     if order_status not in ("created", "priced"):
