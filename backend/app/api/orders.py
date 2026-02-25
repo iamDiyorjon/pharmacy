@@ -16,6 +16,7 @@ import uuid
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +25,7 @@ from app.db.session import get_db
 from app.models.order import OrderStatus, PaymentMethod
 from app.models.user import User
 from app.services.order_service import OrderService
+from app.services.storage_service import storage
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +81,7 @@ class OrderResponse(BaseModel):
     created_at: str
     confirmed_at: str | None
     ready_at: str | None
+    reply_image_url: str | None = None
     items: list[OrderItemResponse] = []
 
     model_config = {"from_attributes": True}
@@ -95,6 +98,9 @@ class OrderListResponse(BaseModel):
 
 
 def _order_to_response(order) -> OrderResponse:
+    reply_image_url = (
+        f"/api/v1/orders/{order.id}/reply-image" if order.reply_image_key else None
+    )
     return OrderResponse(
         id=str(order.id),
         order_number=order.order_number,
@@ -111,6 +117,7 @@ def _order_to_response(order) -> OrderResponse:
         created_at=order.created_at.isoformat() if order.created_at else "",
         confirmed_at=order.confirmed_at.isoformat() if order.confirmed_at else None,
         ready_at=order.ready_at.isoformat() if order.ready_at else None,
+        reply_image_url=reply_image_url,
         items=[
             OrderItemResponse(
                 id=str(item.id),
@@ -296,3 +303,46 @@ async def reorder(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     return _order_to_response(order)
+
+
+# ---------------------------------------------------------------------------
+# GET /orders/{order_id}/reply-image
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{order_id}/reply-image",
+    summary="Download the staff reply image for an order",
+)
+async def download_reply_image(
+    order_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    order = await order_service.get_order(db, order_id)
+    if order is None or order.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    if not order.reply_image_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No reply image for this order",
+        )
+
+    try:
+        file_data = await storage.download_file(order.reply_image_key)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reply image file not found",
+        )
+
+    # Determine content type from the key extension
+    content_type = "image/png" if order.reply_image_key.endswith(".png") else "image/jpeg"
+    file_name = order.reply_image_key.rsplit("/", 1)[-1]
+
+    return Response(
+        content=file_data,
+        media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{file_name}"'},
+    )

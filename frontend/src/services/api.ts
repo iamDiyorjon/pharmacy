@@ -78,6 +78,7 @@ export interface Order {
   created_at: string;
   confirmed_at: string | null;
   ready_at: string | null;
+  reply_image_url: string | null;
 }
 
 export interface OrderItem {
@@ -117,6 +118,7 @@ export interface StaffOrder {
   user_first_name: string;
   user_phone: string | null;
   created_at: string;
+  reply_image_url: string | null;
   items: OrderItem[];
   prescriptions: Prescription[];
 }
@@ -386,6 +388,24 @@ export async function rejectOrder(id: string, reason: string): Promise<StaffOrde
     reason,
   });
   return data;
+}
+
+export async function uploadReplyImage(
+  orderId: string,
+  file: File,
+): Promise<StaffOrder> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await apiClient.post<StaffOrder>(
+    `/staff/orders/${orderId}/reply-image`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data;
+}
+
+export function getReplyImageUrl(orderId: string): string {
+  return `/api/v1/orders/${orderId}/reply-image`;
 }
 
 export async function getMedicines(params?: {

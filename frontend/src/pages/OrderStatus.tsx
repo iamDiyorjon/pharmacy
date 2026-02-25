@@ -7,6 +7,7 @@ import {
   confirmOrder,
   cancelOrder,
   reorder,
+  getReplyImageUrl,
   type OrderDetail,
   type PaymentMethod,
 } from '../services/api';
@@ -345,6 +346,23 @@ export default function OrderStatus() {
         </div>
       )}
 
+      {/* Reply image from pharmacy */}
+      {order.reply_image_url && (
+        <div style={styles.card}>
+          <h3 style={styles.sectionTitle}>{t('orderStatus.replyImage', 'Dorixonadan rasm')}</h3>
+          <div style={styles.replyImageWrapper}>
+            <a href={getReplyImageUrl(order.id)} target="_blank" rel="noreferrer">
+              <img
+                src={getReplyImageUrl(order.id)}
+                alt={t('orderStatus.replyImage', 'Dorixonadan rasm')}
+                style={styles.replyImage}
+                loading="lazy"
+              />
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Timestamps */}
       <div style={styles.card}>
         <InfoRow label={t('orders.date')} value={formatDate(order.created_at)} />
@@ -590,6 +608,17 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: 2,
   },
   sectionTitle: { margin: '0 0 8px', fontSize: 14, fontWeight: 700 },
+  replyImageWrapper: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    border: '1px solid var(--tg-theme-hint-color, #ddd)',
+  },
+  replyImage: {
+    width: '100%',
+    maxHeight: 300,
+    objectFit: 'contain' as const,
+    display: 'block',
+  },
   itemRow: {
     display: 'flex',
     alignItems: 'center',

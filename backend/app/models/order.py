@@ -83,6 +83,9 @@ class Order(Base, UUIDMixin, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Staff reply image (screenshot from POS/calculator app)
+    reply_image_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     # Payment fields (T068)
     payment_method: Mapped[PaymentMethod | None] = mapped_column(
         Enum(PaymentMethod, name="payment_method", values_callable=lambda x: [e.value for e in x]),

@@ -8,6 +8,8 @@ import {
   readyOrder,
   completeOrder,
   rejectOrder,
+  uploadReplyImage,
+  getReplyImageUrl,
   type StaffOrder,
   type PriceOrderItem,
 } from '../../services/api';
@@ -29,6 +31,10 @@ export default function StaffOrderDetail() {
   // Rejection state
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Reply image upload state
+  const [replyImageFile, setReplyImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     if (!id) return;
@@ -119,6 +125,20 @@ export default function StaffOrderDetail() {
     }
   }
 
+  async function handleUploadReplyImage() {
+    if (!id || !replyImageFile) return;
+    setUploadingImage(true);
+    try {
+      const updated = await uploadReplyImage(id, replyImageFile);
+      setOrder((prev) => prev ? { ...prev, ...updated } : null);
+      setReplyImageFile(null);
+    } catch {
+      setError(t('errors.networkError'));
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
   if (loading) return <div style={styles.center}><p>{t('common.loading')}</p></div>;
   if (error && !order) return <div style={styles.center}><p style={styles.errText}>{error}</p></div>;
   if (!order) return null;
@@ -191,6 +211,70 @@ export default function StaffOrderDetail() {
               </a>
             </div>
           ))}
+        </section>
+      )}
+
+      {/* Reply image (staff screenshot) */}
+      {(order.status === 'created' || order.status === 'priced') && (
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>
+            {t('staff.replyImage', 'Javob rasmi (skrinshot)')}
+          </h2>
+
+          {/* Show existing reply image */}
+          {order.reply_image_url && (
+            <div style={styles.prescriptionWrapper}>
+              <a href={getReplyImageUrl(order.id)} target="_blank" rel="noreferrer">
+                <img
+                  src={getReplyImageUrl(order.id)}
+                  alt={t('staff.replyImage', 'Javob rasmi')}
+                  style={styles.prescriptionImg}
+                  loading="lazy"
+                />
+              </a>
+            </div>
+          )}
+
+          {/* File input + upload button */}
+          <input
+            type="file"
+            accept="image/jpeg,image/png"
+            style={styles.fileInput}
+            onChange={(e) => setReplyImageFile(e.target.files?.[0] ?? null)}
+          />
+          {replyImageFile && (
+            <p style={styles.fileName}>{replyImageFile.name}</p>
+          )}
+          <button
+            style={styles.primaryBtn}
+            onClick={handleUploadReplyImage}
+            disabled={uploadingImage || !replyImageFile}
+          >
+            {uploadingImage
+              ? t('common.loading')
+              : order.reply_image_url
+              ? t('staff.replaceImage', 'Rasmni almashtirish')
+              : t('staff.uploadImage', 'Rasmni yuklash')}
+          </button>
+        </section>
+      )}
+
+      {/* Show reply image in read-only mode for other statuses */}
+      {order.reply_image_url && order.status !== 'created' && order.status !== 'priced' && (
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>
+            {t('staff.replyImage', 'Javob rasmi')}
+          </h2>
+          <div style={styles.prescriptionWrapper}>
+            <a href={getReplyImageUrl(order.id)} target="_blank" rel="noreferrer">
+              <img
+                src={getReplyImageUrl(order.id)}
+                alt={t('staff.replyImage', 'Javob rasmi')}
+                style={styles.prescriptionImg}
+                loading="lazy"
+              />
+            </a>
+          </div>
         </section>
       )}
 
@@ -441,6 +525,20 @@ const styles: Record<string, React.CSSProperties> = {
     resize: 'none',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
+  },
+  fileInput: {
+    width: '100%',
+    padding: '8px 0',
+    fontSize: 13,
+    boxSizing: 'border-box' as const,
+  },
+  fileName: {
+    margin: 0,
+    fontSize: 12,
+    color: 'var(--tg-theme-hint-color, #888)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
   },
   errText: { color: '#e53935', fontSize: 13, textAlign: 'center', padding: '8px 16px' },
 };

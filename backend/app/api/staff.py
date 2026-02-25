@@ -17,7 +17,8 @@ import logging
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,7 @@ from app.models.order import OrderStatus
 from app.models.staff import PharmacyStaff
 from app.services.medicine_service import MedicineService
 from app.services.order_service import OrderService
+from app.services.storage_service import storage
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,7 @@ class StaffOrderResponse(BaseModel):
     user_first_name: str
     user_phone: str | None
     created_at: str
+    reply_image_url: str | None = None
     items: list[OrderItemResponse] = []
     prescriptions: list[PrescriptionResponse] = []
     model_config = {"from_attributes": True}
@@ -132,6 +135,9 @@ class MedicineListResponse(BaseModel):
 
 
 def _staff_order_response(order) -> StaffOrderResponse:
+    reply_image_url = (
+        f"/api/v1/orders/{order.id}/reply-image" if order.reply_image_key else None
+    )
     return StaffOrderResponse(
         id=str(order.id),
         order_number=order.order_number,
@@ -147,6 +153,7 @@ def _staff_order_response(order) -> StaffOrderResponse:
         user_first_name=order.user.first_name if order.user else "Unknown",
         user_phone=order.user.phone if order.user else None,
         created_at=order.created_at.isoformat() if order.created_at else "",
+        reply_image_url=reply_image_url,
         items=[
             OrderItemResponse(
                 id=str(item.id),
@@ -327,6 +334,76 @@ async def reject_order(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _staff_order_response(order)
+
+
+# ---------------------------------------------------------------------------
+# POST /staff/orders/{order_id}/reply-image
+# ---------------------------------------------------------------------------
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+@router.post(
+    "/orders/{order_id}/reply-image",
+    response_model=StaffOrderResponse,
+    summary="Upload a reply image (screenshot) for an order",
+)
+async def upload_reply_image(
+    order_id: uuid.UUID,
+    file: UploadFile,
+    db: AsyncSession = Depends(get_db),
+    staff: PharmacyStaff = Depends(get_current_staff),
+) -> StaffOrderResponse:
+    # Verify order belongs to staff's pharmacy
+    order = await order_service.get_order(db, order_id)
+    if order is None or order.pharmacy_id != staff.pharmacy_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    # Only allow upload for created / priced orders
+    order_status = order.status.value if hasattr(order.status, "value") else order.status
+    if order_status not in ("created", "priced"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reply image can only be uploaded for created or priced orders",
+        )
+
+    # Validate content type
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type '{content_type}'. Only JPEG and PNG are allowed.",
+        )
+
+    # Read and validate size
+    file_data = await file.read()
+    if len(file_data) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Maximum size is {MAX_IMAGE_SIZE // (1024 * 1024)} MB.",
+        )
+
+    # Determine extension
+    ext = "jpg" if content_type == "image/jpeg" else "png"
+    file_key = f"reply-images/{order_id}/{uuid.uuid4()}.{ext}"
+
+    # Delete previous reply image if exists
+    if order.reply_image_key:
+        try:
+            await storage.delete_file(order.reply_image_key)
+        except Exception:
+            logger.warning("Failed to delete old reply image key='%s'", order.reply_image_key)
+
+    # Upload to MinIO
+    await storage.upload_file(file_data, file_key, content_type)
+
+    # Update order record
+    order.reply_image_key = file_key
+    await db.commit()
+    await db.refresh(order)
+
     return _staff_order_response(order)
 
 
