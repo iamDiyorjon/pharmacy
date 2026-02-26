@@ -185,6 +185,13 @@ export default function App() {
     }
   }, [navigate, isTelegram]);
 
+  // Auto-redirect staff users on desktop browser to /staff
+  useEffect(() => {
+    if (authReady && isStaff && !isTelegram && location.pathname === '/') {
+      navigate('/staff', { replace: true });
+    }
+  }, [authReady, isStaff, isTelegram, location.pathname, navigate]);
+
   if (!authReady) return <PageSpinner />;
 
   // In browser without auth — show login/register
