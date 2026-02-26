@@ -118,7 +118,7 @@ class MedicineAvailabilityResponse(BaseModel):
     pharmacy_name: str
     is_available: bool
     price: float | None = None
-    quantity: int | None = None
+    quantity: float | None = None
 
 
 class MedicineResponse(BaseModel):
