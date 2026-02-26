@@ -244,7 +244,11 @@ class MedicineService:
 
         stmt = (
             select(Medicine)
-            .options(selectinload(Medicine.availability))
+            .options(
+                selectinload(Medicine.availability).selectinload(
+                    MedicineAvailability.pharmacy
+                )
+            )
             .order_by(Medicine.name)
             .limit(limit)
             .offset(offset)

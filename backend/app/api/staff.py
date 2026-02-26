@@ -113,6 +113,14 @@ class StaffOrderListResponse(BaseModel):
     total: int
 
 
+class MedicineAvailabilityResponse(BaseModel):
+    pharmacy_id: str
+    pharmacy_name: str
+    is_available: bool
+    price: float | None = None
+    quantity: int | None = None
+
+
 class MedicineResponse(BaseModel):
     id: str
     name: str
@@ -121,6 +129,7 @@ class MedicineResponse(BaseModel):
     description: str | None
     category: str | None
     requires_prescription: bool
+    availability: list[MedicineAvailabilityResponse] = []
     model_config = {"from_attributes": True}
 
 
@@ -442,6 +451,16 @@ async def list_medicines(
                 description=m.description,
                 category=m.category,
                 requires_prescription=m.requires_prescription,
+                availability=[
+                    MedicineAvailabilityResponse(
+                        pharmacy_id=str(a.pharmacy_id),
+                        pharmacy_name=a.pharmacy.name if a.pharmacy else "",
+                        is_available=a.is_available,
+                        price=float(a.price) if a.price else None,
+                        quantity=a.quantity,
+                    )
+                    for a in (m.availability or [])
+                ],
             )
             for m in medicines
         ],
