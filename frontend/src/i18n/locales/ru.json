@@ -150,6 +150,7 @@
     "dashboard": "Панель управления",
     "orders": "Заказы",
     "medicines": "Лекарства",
+    "allOrders": "Все",
     "newOrders": "Новые заказы",
     "queue": "Очередь",
     "priceOrder": "Установить цену",

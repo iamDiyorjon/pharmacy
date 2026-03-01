@@ -150,6 +150,7 @@
     "dashboard": "Dashboard",
     "orders": "Orders",
     "medicines": "Medicines",
+    "allOrders": "All",
     "newOrders": "New orders",
     "queue": "Queue",
     "priceOrder": "Set price",

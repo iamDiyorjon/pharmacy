@@ -4,26 +4,44 @@ import { useTranslation } from 'react-i18next';
 
 import { getStaffOrders, type StaffOrder, type OrderStatus } from '../../services/api';
 
-const STATUS_TABS: { status: OrderStatus; labelKey: string; color: string }[] = [
-  { status: 'created', labelKey: 'staff.newOrders', color: '#1565c0' },
-  { status: 'priced', labelKey: 'orderStatus.status.priced', color: '#e65100' },
-  { status: 'confirmed', labelKey: 'orderStatus.status.confirmed', color: '#283593' },
-  { status: 'ready', labelKey: 'orderStatus.status.ready', color: '#1b5e20' },
+type TabKey = OrderStatus | 'all';
+
+const STATUS_TABS: { key: TabKey; labelKey: string; color: string }[] = [
+  { key: 'all', labelKey: 'staff.allOrders', color: '#333' },
+  { key: 'created', labelKey: 'staff.newOrders', color: '#1565c0' },
+  { key: 'priced', labelKey: 'orderStatus.status.priced', color: '#e65100' },
+  { key: 'confirmed', labelKey: 'orderStatus.status.confirmed', color: '#283593' },
+  { key: 'ready', labelKey: 'orderStatus.status.ready', color: '#1b5e20' },
+  { key: 'completed', labelKey: 'orderStatus.status.completed', color: '#2e7d32' },
+  { key: 'rejected', labelKey: 'orderStatus.status.rejected', color: '#c62828' },
+  { key: 'cancelled', labelKey: 'orderStatus.status.cancelled', color: '#888' },
 ];
+
+const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+  created: { bg: '#e3f2fd', text: '#1565c0' },
+  priced: { bg: '#fff3e0', text: '#e65100' },
+  confirmed: { bg: '#e8eaf6', text: '#283593' },
+  ready: { bg: '#e8f5e9', text: '#1b5e20' },
+  completed: { bg: '#e8f5e9', text: '#2e7d32' },
+  rejected: { bg: '#fce4ec', text: '#c62828' },
+  cancelled: { bg: '#f5f5f5', text: '#888' },
+};
 
 export default function StaffDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const [allOrders, setAllOrders] = useState<StaffOrder[]>([]);
   const [ordersByStatus, setOrdersByStatus] = useState<
     Partial<Record<OrderStatus, StaffOrder[]>>
   >({});
-  const [activeTab, setActiveTab] = useState<OrderStatus>('created');
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [loading, setLoading] = useState(true);
 
   const loadOrders = useCallback(async () => {
     try {
       const { orders } = await getStaffOrders({ limit: 100 });
+      setAllOrders(orders);
       const grouped: Partial<Record<OrderStatus, StaffOrder[]>> = {};
       for (const o of orders) {
         if (!grouped[o.status]) grouped[o.status] = [];
@@ -46,7 +64,7 @@ export default function StaffDashboard() {
     return () => clearInterval(id);
   }, [loadOrders]);
 
-  const activeOrders = ordersByStatus[activeTab] ?? [];
+  const activeOrders = activeTab === 'all' ? allOrders : (ordersByStatus[activeTab] ?? []);
 
   return (
     <div style={styles.page}>
@@ -56,21 +74,23 @@ export default function StaffDashboard() {
 
       {/* Status tabs */}
       <div style={styles.tabs}>
-        {STATUS_TABS.map(({ status, labelKey, color }) => {
-          const count = (ordersByStatus[status] ?? []).length;
-          const isActive = status === activeTab;
+        {STATUS_TABS.map(({ key, labelKey, color }) => {
+          const count = key === 'all' ? allOrders.length : (ordersByStatus[key] ?? []).length;
+          const isActive = key === activeTab;
+          // Hide empty terminal tabs to keep it clean
+          if (count === 0 && ['completed', 'rejected', 'cancelled'].includes(key)) return null;
           return (
             <button
-              key={status}
+              key={key}
               style={{
                 ...styles.tab,
                 borderBottom: isActive ? `3px solid ${color}` : '3px solid transparent',
                 color: isActive ? color : '#888',
                 fontWeight: isActive ? 700 : 500,
               }}
-              onClick={() => setActiveTab(status)}
+              onClick={() => setActiveTab(key)}
             >
-              {t(labelKey)}
+              {key === 'all' ? t('staff.allOrders', 'Barchasi') : t(labelKey)}
               <span style={{
                 ...styles.tabBadge,
                 background: isActive ? color : '#e0e0e0',
@@ -86,7 +106,9 @@ export default function StaffDashboard() {
       {loading && <p style={styles.hint}>{t('common.loading')}</p>}
 
       {!loading && activeOrders.length === 0 && (
-        <p style={styles.emptyText}>—</p>
+        <p style={styles.emptyText}>
+          {t('orders.empty', 'Buyurtmalar yo\'q')}
+        </p>
       )}
 
       {/* Data table */}
@@ -98,70 +120,89 @@ export default function StaffDashboard() {
                 <th style={styles.th}>#</th>
                 <th style={styles.th}>{t('staff.customerInfo')}</th>
                 <th style={styles.th}>{t('order.orderSummary')}</th>
+                {activeTab === 'all' && <th style={styles.th}>{t('orderStatus.title', 'Holat')}</th>}
                 <th style={styles.th}>{t('order.medicines')}</th>
                 <th style={styles.thRight}>{t('staff.totalPrice')}</th>
-                <th style={styles.th}>{t('orderStatus.paymentMethod.cash')}</th>
+                <th style={styles.th}>{t('orderStatus.paymentMethod.cash', 'To\'lov')}</th>
                 <th style={styles.thRight}>{t('orders.date')}</th>
               </tr>
             </thead>
             <tbody>
-              {activeOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  style={styles.tr}
-                  onClick={() => navigate(`/staff/order/${order.id}`)}
-                >
-                  <td style={styles.td}>
-                    <span style={styles.orderNum}>{order.order_number}</span>
-                  </td>
-                  <td style={styles.td}>
-                    <div style={styles.customerCell}>
-                      <span style={styles.customerName}>{order.user_first_name}</span>
-                      {order.user_phone && (
-                        <span style={styles.customerPhone}>{order.user_phone}</span>
+              {activeOrders.map((order) => {
+                const badge = STATUS_BADGE_COLORS[order.status] ?? { bg: '#f5f5f5', text: '#888' };
+                return (
+                  <tr
+                    key={order.id}
+                    style={styles.tr}
+                    onClick={() => navigate(`/staff/order/${order.id}`)}
+                  >
+                    <td style={styles.td}>
+                      <span style={styles.orderNum}>{order.order_number}</span>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={styles.customerCell}>
+                        <span style={styles.customerName}>{order.user_first_name}</span>
+                        {order.user_phone && (
+                          <span style={styles.customerPhone}>{order.user_phone}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={styles.typeBadge}>
+                        {t(`order.orderType.${order.order_type}`)}
+                      </span>
+                    </td>
+                    {activeTab === 'all' && (
+                      <td style={styles.td}>
+                        <span style={{
+                          ...styles.statusBadge,
+                          background: badge.bg,
+                          color: badge.text,
+                        }}>
+                          {t(`orderStatus.status.${order.status}`)}
+                        </span>
+                      </td>
+                    )}
+                    <td style={styles.td}>
+                      <span style={styles.itemCount}>
+                        {order.items.length} {t('orders.items')}
+                      </span>
+                    </td>
+                    <td style={styles.tdRight}>
+                      {order.total_price !== null ? (
+                        <span style={styles.price}>
+                          {order.total_price.toLocaleString()} {order.currency}
+                        </span>
+                      ) : (
+                        <span style={styles.noPrice}>—</span>
                       )}
-                    </div>
-                  </td>
-                  <td style={styles.td}>
-                    <span style={styles.typeBadge}>
-                      {t(`order.orderType.${order.order_type}`)}
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    <span style={styles.itemCount}>
-                      {order.items.length} {t('orders.items')}
-                    </span>
-                  </td>
-                  <td style={styles.tdRight}>
-                    {order.total_price !== null ? (
-                      <span style={styles.price}>
-                        {order.total_price.toLocaleString()} {order.currency}
+                    </td>
+                    <td style={styles.td}>
+                      {order.payment_method ? (
+                        <span style={styles.payBadge}>
+                          {order.payment_method === 'cash'
+                            ? t('staff.paymentStatus.cash')
+                            : order.payment_status === 'paid'
+                            ? t('staff.paymentStatus.paid')
+                            : t('staff.paymentStatus.pending')}
+                        </span>
+                      ) : (
+                        <span style={styles.noPrice}>—</span>
+                      )}
+                    </td>
+                    <td style={styles.tdRight}>
+                      <span style={styles.time}>
+                        {new Date(order.created_at).toLocaleString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
-                    ) : (
-                      <span style={styles.noPrice}>—</span>
-                    )}
-                  </td>
-                  <td style={styles.td}>
-                    {order.payment_method && (
-                      <span style={styles.payBadge}>
-                        {order.payment_method === 'cash'
-                          ? t('staff.paymentStatus.cash')
-                          : order.payment_status === 'paid'
-                          ? t('staff.paymentStatus.paid')
-                          : t('staff.paymentStatus.pending')}
-                      </span>
-                    )}
-                  </td>
-                  <td style={styles.tdRight}>
-                    <span style={styles.time}>
-                      {new Date(order.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -187,6 +228,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 4,
     borderBottom: '1px solid #e0e0e0',
     marginBottom: 16,
+    overflowX: 'auto',
   },
   tab: {
     display: 'flex',
@@ -290,6 +332,13 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     background: '#e3f2fd',
     color: '#1565c0',
+    whiteSpace: 'nowrap',
+  },
+  statusBadge: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '3px 10px',
+    borderRadius: 12,
     whiteSpace: 'nowrap',
   },
   itemCount: {

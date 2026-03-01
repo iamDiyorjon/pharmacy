@@ -150,6 +150,7 @@
     "dashboard": "Boshqaruv paneli",
     "orders": "Buyurtmalar",
     "medicines": "Dorilar",
+    "allOrders": "Barchasi",
     "newOrders": "Yangi buyurtmalar",
     "queue": "Navbat",
     "priceOrder": "Narx belgilash",
