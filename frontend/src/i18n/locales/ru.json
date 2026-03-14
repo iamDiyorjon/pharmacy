@@ -131,7 +131,10 @@
     "profile": "Профиль",
     "firstName": "Имя",
     "lastName": "Фамилия",
-    "phone": "Телефон"
+    "phone": "Телефон",
+    "username": "Имя пользователя",
+    "premium": "Telegram Premium",
+    "telegramId": "Telegram ID"
   },
   "pharmacy": {
     "address": "Адрес",
@@ -174,6 +177,9 @@
     "available": "В наличии",
     "unavailable": "Нет в наличии",
     "toggleAvailability": "Изменить наличие",
+    "importExcel": "Импорт Excel",
+    "importSuccess": "Импорт завершён",
+    "importErrors": "ошибок",
     "prescriptionImage": "Фото рецепта",
     "paymentStatus": {
       "paid": "Оплачено (онлайн)",

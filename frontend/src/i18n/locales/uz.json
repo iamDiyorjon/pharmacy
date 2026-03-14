@@ -131,7 +131,10 @@
     "profile": "Profil",
     "firstName": "Ism",
     "lastName": "Familiya",
-    "phone": "Telefon"
+    "phone": "Telefon",
+    "username": "Foydalanuvchi nomi",
+    "premium": "Telegram Premium",
+    "telegramId": "Telegram ID"
   },
   "pharmacy": {
     "address": "Manzil",
@@ -174,6 +177,9 @@
     "available": "Mavjud",
     "unavailable": "Mavjud emas",
     "toggleAvailability": "Mavjudligini o'zgartirish",
+    "importExcel": "Excel yuklash",
+    "importSuccess": "Import tugadi",
+    "importErrors": "xato",
     "prescriptionImage": "Retsept rasmi",
     "paymentStatus": {
       "paid": "To'langan (online)",

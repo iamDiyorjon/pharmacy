@@ -33,10 +33,20 @@ export default function Settings() {
     <div style={styles.page}>
       {/* Header with avatar */}
       <header style={styles.hero}>
-        <div style={styles.avatar}>
-          <span style={styles.avatarText}>{initials.toUpperCase()}</span>
-        </div>
-        <h1 style={styles.heroTitle}>{displayName}</h1>
+        {tgUser?.photo_url ? (
+          <img src={tgUser.photo_url} alt="" style={styles.avatarImg} />
+        ) : (
+          <div style={styles.avatar}>
+            <span style={styles.avatarText}>{initials.toUpperCase()}</span>
+          </div>
+        )}
+        <h1 style={styles.heroTitle}>
+          {displayName}
+          {tgUser?.is_premium && <span style={styles.premiumBadge}> ⭐</span>}
+        </h1>
+        {tgUser?.username && (
+          <span style={styles.heroUsername}>@{tgUser.username}</span>
+        )}
       </header>
 
       <div style={styles.content}>
@@ -47,6 +57,13 @@ export default function Settings() {
             <Row label={t('settings.firstName')} value={tgUser.first_name} />
             {tgUser.last_name && (
               <Row label={t('settings.lastName')} value={tgUser.last_name} />
+            )}
+            {tgUser.username && (
+              <Row label={t('settings.username')} value={`@${tgUser.username}`} />
+            )}
+            <Row label={t('settings.telegramId')} value={String(tgUser.id)} />
+            {tgUser.is_premium && (
+              <Row label={t('settings.premium')} value="⭐ Premium" />
             )}
           </section>
         )}
@@ -96,13 +113,20 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   avatar: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     borderRadius: '50%',
     background: 'rgba(255,255,255,0.2)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    border: '3px solid rgba(255,255,255,0.4)',
+  },
+  avatarImg: {
+    width: 72,
+    height: 72,
+    borderRadius: '50%',
+    objectFit: 'cover',
     border: '3px solid rgba(255,255,255,0.4)',
   },
   avatarText: {
@@ -114,6 +138,16 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: 20,
     fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  premiumBadge: {
+    fontSize: 18,
+  },
+  heroUsername: {
+    fontSize: 14,
+    opacity: 0.8,
+    marginTop: -4,
   },
   content: {
     padding: '12px 16px 0',

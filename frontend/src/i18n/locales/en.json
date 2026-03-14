@@ -131,7 +131,10 @@
     "profile": "Profile",
     "firstName": "First name",
     "lastName": "Last name",
-    "phone": "Phone"
+    "phone": "Phone",
+    "username": "Username",
+    "premium": "Telegram Premium",
+    "telegramId": "Telegram ID"
   },
   "pharmacy": {
     "address": "Address",
@@ -174,6 +177,9 @@
     "available": "Available",
     "unavailable": "Unavailable",
     "toggleAvailability": "Toggle availability",
+    "importExcel": "Import Excel",
+    "importSuccess": "Import complete",
+    "importErrors": "errors",
     "prescriptionImage": "Prescription image",
     "paymentStatus": {
       "paid": "Paid online",
