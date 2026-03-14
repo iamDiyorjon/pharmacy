@@ -13,7 +13,9 @@
     "closed": "Yopiq",
     "openHours": "Ish vaqti",
     "selectPharmacy": "Dorixonani tanlang",
-    "searchMedicines": "Dori qidirish"
+    "searchMedicines": "Dori qidirish",
+    "addToHomeScreen": "Bosh ekranga qo'shish",
+    "addToHomeScreenHint": "Telefoningizdan tez kirish"
   },
   "search": {
     "title": "Dori qidirish",

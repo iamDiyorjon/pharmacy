@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -84,6 +84,115 @@ function PharmacyCard({ pharmacy, onSearch }: PharmacyCardProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Add to Home Screen banner (Telegram WebApp API + Browser PWA)
+// ---------------------------------------------------------------------------
+const HOME_SCREEN_DISMISSED_KEY = 'home_screen_banner_dismissed';
+
+// Store the browser beforeinstallprompt event globally so the banner can use it
+let deferredPwaPrompt: BeforeInstallPromptEvent | null = null;
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPwaPrompt = e as BeforeInstallPromptEvent;
+  });
+}
+
+function AddToHomeScreenBanner() {
+  const { t } = useTranslation();
+  const [visible, setVisible] = useState(false);
+  const [mode, setMode] = useState<'telegram' | 'browser' | null>(null);
+
+  useEffect(() => {
+    if (localStorage.getItem(HOME_SCREEN_DISMISSED_KEY)) return;
+
+    const tg = window.Telegram?.WebApp;
+
+    // Check Telegram first
+    if (tg) {
+      if (typeof tg.checkHomeScreenStatus === 'function') {
+        tg.checkHomeScreenStatus((status: string) => {
+          if (status === 'unsupported' || status === 'added') return;
+          setMode('telegram');
+          setVisible(true);
+        });
+        return;
+      }
+      if (typeof tg.addToHomeScreen === 'function') {
+        setMode('telegram');
+        setVisible(true);
+        return;
+      }
+    }
+
+    // Browser PWA install prompt
+    if (deferredPwaPrompt) {
+      setMode('browser');
+      setVisible(true);
+      return;
+    }
+
+    // Listen for the event if it hasn't fired yet
+    const handler = (e: Event) => {
+      e.preventDefault();
+      deferredPwaPrompt = e as BeforeInstallPromptEvent;
+      if (!localStorage.getItem(HOME_SCREEN_DISMISSED_KEY)) {
+        setMode('browser');
+        setVisible(true);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleAdd = useCallback(async () => {
+    if (mode === 'telegram') {
+      window.Telegram?.WebApp?.addToHomeScreen?.();
+    } else if (mode === 'browser' && deferredPwaPrompt) {
+      await deferredPwaPrompt.prompt();
+      const { outcome } = await deferredPwaPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredPwaPrompt = null;
+      }
+    }
+    setVisible(false);
+    localStorage.setItem(HOME_SCREEN_DISMISSED_KEY, '1');
+  }, [mode]);
+
+  const handleDismiss = useCallback(() => {
+    setVisible(false);
+    localStorage.setItem(HOME_SCREEN_DISMISSED_KEY, '1');
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div style={bannerStyles.wrapper}>
+      <div style={bannerStyles.content}>
+        <span style={bannerStyles.icon}>{'\uD83D\uDCF2'}</span>
+        <div style={bannerStyles.text}>
+          <span style={bannerStyles.title}>{t('home.addToHomeScreen')}</span>
+          <span style={bannerStyles.hint}>{t('home.addToHomeScreenHint')}</span>
+        </div>
+      </div>
+      <div style={bannerStyles.actions}>
+        <button style={bannerStyles.addBtn} onClick={handleAdd}>
+          {t('home.addToHomeScreen')}
+        </button>
+        <button style={bannerStyles.dismissBtn} onClick={handleDismiss}>
+          {'\u2715'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Home page
 // ---------------------------------------------------------------------------
 export default function Home() {
@@ -125,6 +234,9 @@ export default function Home() {
         <h1 style={styles.heroTitle}>{t('home.title')}</h1>
         <p style={styles.heroSubtitle}>{t('home.subtitle')}</p>
       </header>
+
+      {/* Add to home screen */}
+      <AddToHomeScreenBanner />
 
       {/* Quick actions */}
       <div style={styles.quickActions}>
@@ -280,6 +392,78 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
+  },
+};
+
+const bannerStyles: Record<string, React.CSSProperties> = {
+  wrapper: {
+    margin: '12px 16px 0',
+    padding: '12px 14px',
+    borderRadius: 12,
+    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  content: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  icon: {
+    fontSize: 24,
+    flexShrink: 0,
+  },
+  text: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    minWidth: 0,
+  },
+  title: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#1565c0',
+  },
+  hint: {
+    fontSize: 11,
+    color: '#1976d2',
+    opacity: 0.8,
+  },
+  actions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+  addBtn: {
+    padding: '7px 14px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#1976d2',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  dismissBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    border: 'none',
+    background: 'transparent',
+    color: '#1565c0',
+    fontSize: 14,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
   },
 };
 

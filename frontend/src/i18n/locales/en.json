@@ -13,7 +13,9 @@
     "closed": "Closed",
     "openHours": "Opening hours",
     "selectPharmacy": "Select pharmacy",
-    "searchMedicines": "Search medicines"
+    "searchMedicines": "Search medicines",
+    "addToHomeScreen": "Add to Home Screen",
+    "addToHomeScreenHint": "Quick access from your phone"
   },
   "search": {
     "title": "Search Medicines",

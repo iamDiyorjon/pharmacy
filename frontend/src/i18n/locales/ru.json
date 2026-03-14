@@ -13,7 +13,9 @@
     "closed": "Закрыто",
     "openHours": "Часы работы",
     "selectPharmacy": "Выберите аптеку",
-    "searchMedicines": "Найти лекарства"
+    "searchMedicines": "Найти лекарства",
+    "addToHomeScreen": "На главный экран",
+    "addToHomeScreenHint": "Быстрый доступ с телефона"
   },
   "search": {
     "title": "Поиск лекарств",
