@@ -29,6 +29,8 @@
     "addToOrder": "Add to order",
     "filterByPharmacy": "Filter by pharmacy",
     "allPharmacies": "All pharmacies",
+    "selectPharmacyFirst": "Select a pharmacy first",
+    "changePharmacy": "Change",
     "popular": "Popular medicines",
     "quickSearch": "Quick search",
     "from": "from"

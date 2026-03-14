@@ -105,26 +105,24 @@ function MedicineCard({ medicine, selectedPharmacyId, quantity, onAdd, onIncreme
     (lang === 'ru' && medicine.name_ru) ||
     medicine.name;
 
-  const relevantAvailability = selectedPharmacyId
-    ? medicine.availability.filter((a) => a.pharmacy_id === selectedPharmacyId)
-    : medicine.availability;
-
-  const prices = relevantAvailability
-    .filter((a) => a.price != null && a.price > 0)
-    .map((a) => a.price as number);
-  const displayPrice = prices.length > 0 ? Math.min(...prices) : null;
+  const avail = medicine.availability.find((a) => a.pharmacy_id === selectedPharmacyId);
+  const displayPrice = avail?.price != null && avail.price > 0 ? avail.price : null;
+  const isAvailable = avail?.is_available ?? false;
 
   const formatPrice = (price: number) => {
     return price.toLocaleString('ru-RU') + ' ' + t('common.sum');
   };
 
   return (
-    <div style={cardStyles.card}>
+    <div style={{ ...cardStyles.card, ...(! isAvailable ? { opacity: 0.5 } : {}) }}>
       <div style={cardStyles.row}>
         <div style={cardStyles.info}>
           <span style={cardStyles.name}>{displayName}</span>
           {displayPrice != null && (
             <span style={cardStyles.price}>{formatPrice(displayPrice)}</span>
+          )}
+          {!isAvailable && (
+            <span style={cardStyles.unavailText}>{t('search.unavailable')}</span>
           )}
           {medicine.requires_prescription && (
             <span style={cardStyles.rxBadge}>{t('search.requiresPrescription')}</span>
@@ -133,32 +131,19 @@ function MedicineCard({ medicine, selectedPharmacyId, quantity, onAdd, onIncreme
             <span style={cardStyles.category}>{medicine.category}</span>
           )}
         </div>
-        {quantity > 0 ? (
-          <QtyControl
-            quantity={quantity}
-            onIncrement={onIncrement}
-            onDecrement={onDecrement}
-          />
-        ) : (
-          <button style={cardStyles.addBtn} onClick={onAdd}>
-            + {t('search.addToOrder')}
-          </button>
+        {isAvailable && (
+          quantity > 0 ? (
+            <QtyControl
+              quantity={quantity}
+              onIncrement={onIncrement}
+              onDecrement={onDecrement}
+            />
+          ) : (
+            <button style={cardStyles.addBtn} onClick={onAdd}>
+              + {t('search.addToOrder')}
+            </button>
+          )
         )}
-      </div>
-
-      <div style={cardStyles.availability}>
-        {relevantAvailability.map((av) => (
-          <span
-            key={av.pharmacy_id}
-            style={{
-              ...cardStyles.availBadge,
-              ...(av.is_available ? cardStyles.avail : cardStyles.unavail),
-            }}
-          >
-            {av.pharmacy_name}: {av.is_available ? t('search.available') : t('search.unavailable')}
-            {av.price != null && av.is_available && ` — ${formatPrice(av.price)}`}
-          </span>
-        ))}
       </div>
     </div>
   );
@@ -169,13 +154,14 @@ function MedicineCard({ medicine, selectedPharmacyId, quantity, onAdd, onIncreme
 // ---------------------------------------------------------------------------
 interface PopularCardProps {
   medicine: MedicineWithAvailability;
+  pharmacyId: string;
   quantity: number;
   onAdd: () => void;
   onIncrement: () => void;
   onDecrement: () => void;
 }
 
-function PopularCard({ medicine, quantity, onAdd, onIncrement, onDecrement }: PopularCardProps) {
+function PopularCard({ medicine, pharmacyId, quantity, onAdd, onIncrement, onDecrement }: PopularCardProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
@@ -184,12 +170,8 @@ function PopularCard({ medicine, quantity, onAdd, onIncrement, onDecrement }: Po
     (lang === 'ru' && medicine.name_ru) ||
     medicine.name;
 
-  const prices = medicine.availability
-    .filter((a) => a.price != null && a.price > 0 && a.is_available)
-    .map((a) => a.price as number);
-  const minPrice = prices.length > 0 ? Math.min(...prices) : null;
-
-  const isAvailable = medicine.availability.some((a) => a.is_available);
+  const avail = medicine.availability.find((a) => a.pharmacy_id === pharmacyId);
+  const price = avail?.price != null && avail.price > 0 ? avail.price : null;
   const inCart = quantity > 0;
 
   return (
@@ -211,13 +193,13 @@ function PopularCard({ medicine, quantity, onAdd, onIncrement, onDecrement }: Po
           <span style={popularStyles.icon}>💊</span>
         </div>
         <div style={popularStyles.name}>{displayName}</div>
-        {minPrice != null ? (
+        {price != null ? (
           <div style={popularStyles.price}>
-            {t('search.from')} {minPrice.toLocaleString('ru-RU')} {t('common.sum')}
+            {price.toLocaleString('ru-RU')} {t('common.sum')}
           </div>
         ) : (
           <div style={popularStyles.price}>
-            {isAvailable ? t('search.available') : t('search.unavailable')}
+            {t('search.available')}
           </div>
         )}
       </div>
@@ -271,10 +253,21 @@ export default function Search() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isSearching = debouncedQuery.length >= 2;
+  const pharmacySelected = selectedPharmacyId !== '';
+  const selectedPharmacy = pharmacies.find((p) => p.id === selectedPharmacyId);
 
   // Helper: get quantity in cart for a medicine
   function getQty(medicineId: string): number {
     return cart.find((c) => c.medicine.id === medicineId)?.quantity ?? 0;
+  }
+
+  function selectPharmacy(id: string) {
+    if (id !== selectedPharmacyId) {
+      setCart([]); // Clear cart when pharmacy changes
+      setResults([]);
+      setQuery('');
+    }
+    setSelectedPharmacyId(id);
   }
 
   // Load pharmacy list once
@@ -282,18 +275,22 @@ export default function Search() {
     getPharmacies().then((data) => setPharmacies(data)).catch(() => {});
   }, []);
 
-  // Load popular medicines
+  // Load popular medicines (only when pharmacy selected)
   useEffect(() => {
+    if (!pharmacySelected) {
+      setPopular([]);
+      return;
+    }
     setPopularLoading(true);
-    getPopularMedicines(selectedPharmacyId || undefined)
+    getPopularMedicines(selectedPharmacyId)
       .then((data) => setPopular(data))
       .catch(() => {})
       .finally(() => setPopularLoading(false));
-  }, [selectedPharmacyId]);
+  }, [selectedPharmacyId, pharmacySelected]);
 
-  // Search when query changes
+  // Search when query changes (only when pharmacy selected)
   useEffect(() => {
-    if (debouncedQuery.length < 2) {
+    if (!pharmacySelected || debouncedQuery.length < 2) {
       setResults([]);
       return;
     }
@@ -301,7 +298,7 @@ export default function Search() {
     setLoading(true);
     searchMedicines({
       q: debouncedQuery,
-      pharmacy_id: selectedPharmacyId || undefined,
+      pharmacy_id: selectedPharmacyId,
     })
       .then(({ results: data }) => {
         if (!cancelled) setResults(data);
@@ -313,7 +310,7 @@ export default function Search() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, selectedPharmacyId]);
+  }, [debouncedQuery, selectedPharmacyId, pharmacySelected]);
 
   function addToCart(medicine: MedicineWithAvailability) {
     setCart((prev) => {
@@ -357,17 +354,13 @@ export default function Search() {
     navigate('/order', {
       state: {
         items: cart.map((c) => {
-          // Get price for selected pharmacy (or cheapest across all)
-          const avail = selectedPharmacyId
-            ? c.medicine.availability.find((a) => a.pharmacy_id === selectedPharmacyId)
-            : null;
-          const price = avail?.price ?? null;
+          const avail = c.medicine.availability.find((a) => a.pharmacy_id === selectedPharmacyId);
           return {
             medicine_id: c.medicine.id,
             medicine_name:
               c.medicine.name_uz || c.medicine.name_ru || c.medicine.name,
             quantity: c.quantity,
-            unit_price: price,
+            unit_price: avail?.price ?? null,
           };
         }),
         pharmacy_id: selectedPharmacyId,
@@ -382,115 +375,140 @@ export default function Search() {
       {/* Hero header */}
       <div style={styles.hero}>
         <h1 style={styles.heroTitle}>{t('search.title')}</h1>
-        <input
-          ref={inputRef}
-          style={styles.heroInput}
-          type="search"
-          placeholder={t('search.placeholder')}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label={t('search.title')}
-        />
+        {pharmacySelected && (
+          <input
+            ref={inputRef}
+            style={styles.heroInput}
+            type="search"
+            placeholder={t('search.placeholder')}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={t('search.title')}
+          />
+        )}
       </div>
 
-      {/* Pharmacy filter */}
-      <div style={styles.filterRow}>
-        <select
-          style={styles.select}
-          value={selectedPharmacyId}
-          onChange={(e) => setSelectedPharmacyId(e.target.value)}
-          aria-label={t('search.filterByPharmacy')}
-        >
-          <option value="">{t('search.allPharmacies')}</option>
-          {pharmacies.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Hint for short queries */}
-      {query.length > 0 && query.length < 2 && (
-        <p style={styles.hint}>{t('search.minChars')}</p>
-      )}
-
-      {/* Loading search */}
-      {loading && <p style={styles.hint}>{t('search.searching')}</p>}
-
-      {/* No results */}
-      {!loading && isSearching && results.length === 0 && (
-        <p style={styles.hint}>{t('search.noResults')}</p>
-      )}
-
-      {/* Search results */}
-      {isSearching && (
-        <div style={styles.results}>
-          {results.map((m) => (
-            <MedicineCard
-              key={m.id}
-              medicine={m}
-              selectedPharmacyId={selectedPharmacyId}
-              quantity={getQty(m.id)}
-              onAdd={() => addToCart(m)}
-              onIncrement={() => incrementItem(m.id)}
-              onDecrement={() => decrementItem(m.id)}
-            />
-          ))}
+      {/* Selected pharmacy bar (tap to change) */}
+      {pharmacySelected && (
+        <div style={styles.pharmacyBar}>
+          <div style={styles.pharmacyBarInfo}>
+            <span style={styles.pharmacyBarName}>{selectedPharmacy?.name}</span>
+            <span style={styles.pharmacyBarHint}>{selectedPharmacy?.address}</span>
+          </div>
+          <button style={styles.pharmacyBarChange} onClick={() => selectPharmacy('')}>
+            {t('search.changePharmacy')}
+          </button>
         </div>
       )}
 
-      {/* Initial state: quick chips + popular medicines */}
-      {!isSearching && (
-        <>
-          {/* Quick search chips */}
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>{t('search.quickSearch')}</h3>
-            <div style={styles.chipsRow}>
-              {QUICK_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  style={styles.chip}
-                  onClick={() => handleChipTap(chip)}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
+      {/* Pharmacy picker (when none selected) */}
+      {!pharmacySelected && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>{t('search.selectPharmacyFirst')}</h3>
+          <div style={styles.pharmacyList}>
+            {pharmacies.map((p) => (
+              <button
+                key={p.id}
+                style={styles.pharmacyCard}
+                onClick={() => selectPharmacy(p.id)}
+              >
+                <span style={styles.pharmacyCardName}>{p.name}</span>
+                {p.address && (
+                  <span style={styles.pharmacyCardAddr}>{p.address}</span>
+                )}
+              </button>
+            ))}
           </div>
-
-          {/* Popular medicines */}
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>{t('search.popular')}</h3>
-            {popularLoading ? (
-              <p style={styles.hint}>{t('common.loading')}</p>
-            ) : popular.length === 0 ? (
-              <p style={styles.hint}>{t('search.noResults')}</p>
-            ) : (
-              <div style={styles.grid}>
-                {popular.map((m) => (
-                  <PopularCard
-                    key={m.id}
-                    medicine={m}
-                    quantity={getQty(m.id)}
-                    onAdd={() => addToCart(m)}
-                    onIncrement={() => incrementItem(m.id)}
-                    onDecrement={() => decrementItem(m.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </>
+        </div>
       )}
 
-      {/* Cart FAB */}
-      {cart.length > 0 && (
-        <button style={styles.fab} onClick={goToOrder}>
-          <span style={styles.fabIcon}>🛒</span>
-          {t('order.newOrder')}
-          <span style={styles.fabBadge}>{totalItems}</span>
-        </button>
+      {/* Everything below only shows when pharmacy is selected */}
+      {pharmacySelected && (
+        <>
+          {/* Hint for short queries */}
+          {query.length > 0 && query.length < 2 && (
+            <p style={styles.hint}>{t('search.minChars')}</p>
+          )}
+
+          {/* Loading search */}
+          {loading && <p style={styles.hint}>{t('search.searching')}</p>}
+
+          {/* No results */}
+          {!loading && isSearching && results.length === 0 && (
+            <p style={styles.hint}>{t('search.noResults')}</p>
+          )}
+
+          {/* Search results */}
+          {isSearching && (
+            <div style={styles.results}>
+              {results.map((m) => (
+                <MedicineCard
+                  key={m.id}
+                  medicine={m}
+                  selectedPharmacyId={selectedPharmacyId}
+                  quantity={getQty(m.id)}
+                  onAdd={() => addToCart(m)}
+                  onIncrement={() => incrementItem(m.id)}
+                  onDecrement={() => decrementItem(m.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Initial state: quick chips + popular medicines */}
+          {!isSearching && (
+            <>
+              {/* Quick search chips */}
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>{t('search.quickSearch')}</h3>
+                <div style={styles.chipsRow}>
+                  {QUICK_CHIPS.map((chip) => (
+                    <button
+                      key={chip}
+                      style={styles.chip}
+                      onClick={() => handleChipTap(chip)}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Popular medicines */}
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>{t('search.popular')}</h3>
+                {popularLoading ? (
+                  <p style={styles.hint}>{t('common.loading')}</p>
+                ) : popular.length === 0 ? (
+                  <p style={styles.hint}>{t('search.noResults')}</p>
+                ) : (
+                  <div style={styles.grid}>
+                    {popular.map((m) => (
+                      <PopularCard
+                        key={m.id}
+                        medicine={m}
+                        pharmacyId={selectedPharmacyId}
+                        quantity={getQty(m.id)}
+                        onAdd={() => addToCart(m)}
+                        onIncrement={() => incrementItem(m.id)}
+                        onDecrement={() => decrementItem(m.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Cart FAB */}
+          {cart.length > 0 && (
+            <button style={styles.fab} onClick={goToOrder}>
+              <span style={styles.fabIcon}>🛒</span>
+              {t('order.newOrder')}
+              <span style={styles.fabBadge}>{totalItems}</span>
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -525,17 +543,74 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: 'border-box',
     outline: 'none',
   },
-  filterRow: {
-    padding: '10px 16px 0',
-  },
-  select: {
-    width: '100%',
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid var(--tg-theme-hint-color, #ccc)',
-    fontSize: 14,
+  pharmacyBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 16px',
     background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)',
+    borderBottom: '1px solid rgba(0,0,0,0.06)',
+    gap: 10,
+  },
+  pharmacyBarInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    minWidth: 0,
+    flex: 1,
+  },
+  pharmacyBarName: {
+    fontSize: 14,
+    fontWeight: 700,
     color: 'var(--tg-theme-text-color, #222)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  pharmacyBarHint: {
+    fontSize: 11,
+    color: 'var(--tg-theme-hint-color, #888)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  pharmacyBarChange: {
+    flexShrink: 0,
+    padding: '6px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--tg-theme-button-color, #1976d2)',
+    background: 'transparent',
+    color: 'var(--tg-theme-button-color, #1976d2)',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  pharmacyList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  pharmacyCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    padding: '14px 16px',
+    borderRadius: 10,
+    border: 'none',
+    background: 'var(--tg-theme-secondary-bg-color, #f9f9f9)',
+    cursor: 'pointer',
+    textAlign: 'left',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+  },
+  pharmacyCardName: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: 'var(--tg-theme-text-color, #222)',
+  },
+  pharmacyCardAddr: {
+    fontSize: 12,
+    color: 'var(--tg-theme-hint-color, #888)',
   },
   hint: {
     textAlign: 'center',
@@ -662,6 +737,11 @@ const cardStyles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: '#2e7d32',
   },
+  unavailText: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#c62828',
+  },
   rxBadge: {
     fontSize: 10,
     fontWeight: 600,
@@ -686,20 +766,6 @@ const cardStyles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     cursor: 'pointer',
   },
-  availability: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  availBadge: {
-    fontSize: 11,
-    fontWeight: 500,
-    padding: '2px 8px',
-    borderRadius: 20,
-  },
-  avail: { background: '#e8f5e9', color: '#2e7d32' },
-  unavail: { background: '#fce4ec', color: '#c62828' },
 };
 
 const popularStyles: Record<string, React.CSSProperties> = {

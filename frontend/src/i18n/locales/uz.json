@@ -29,6 +29,8 @@
     "addToOrder": "Buyurtmaga qo'shish",
     "filterByPharmacy": "Dorixona bo'yicha filtrlash",
     "allPharmacies": "Barcha dorixonalar",
+    "selectPharmacyFirst": "Avval dorixonani tanlang",
+    "changePharmacy": "O'zgartirish",
     "popular": "Mashhur dorilar",
     "quickSearch": "Tez qidirish",
     "from": "dan"

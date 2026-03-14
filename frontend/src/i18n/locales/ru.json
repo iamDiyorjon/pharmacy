@@ -29,6 +29,8 @@
     "addToOrder": "Добавить в заказ",
     "filterByPharmacy": "Фильтр по аптеке",
     "allPharmacies": "Все аптеки",
+    "selectPharmacyFirst": "Сначала выберите аптеку",
+    "changePharmacy": "Изменить",
     "popular": "Популярные лекарства",
     "quickSearch": "Быстрый поиск",
     "from": "от"
