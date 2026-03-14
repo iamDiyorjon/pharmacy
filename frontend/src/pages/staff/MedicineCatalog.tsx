@@ -71,15 +71,17 @@ export default function StaffMedicineCatalog() {
   const lang = i18n.language;
   const [medicines, setMedicines] = useState<MedicineWithAvailability[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
       const { medicines: data } = await getMedicines({ limit: 200 });
       setMedicines(data);
     } catch {
-      /* silent */
+      setError(t('errors.networkError'));
     } finally {
       setLoading(false);
     }
@@ -141,7 +143,14 @@ export default function StaffMedicineCatalog() {
 
       {loading && <p style={styles.hint}>{t('common.loading')}</p>}
 
-      {!loading && filtered.length === 0 && (
+      {error && (
+        <div style={{ textAlign: 'center', padding: 20 }}>
+          <p style={{ color: '#c62828', marginBottom: 10 }}>{error}</p>
+          <button onClick={load} style={styles.addBtn}>{t('common.retry', 'Qayta urinish')}</button>
+        </div>
+      )}
+
+      {!loading && !error && filtered.length === 0 && (
         <p style={styles.hint}>{t('search.noResults')}</p>
       )}
 

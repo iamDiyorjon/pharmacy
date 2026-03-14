@@ -214,6 +214,7 @@ export default function App() {
             <Route path="/staff" element={<StaffDashboard />} />
             <Route path="/staff/order/:id" element={<StaffOrderDetail />} />
             <Route path="/staff/medicines" element={<StaffMedicineCatalog />} />
+            <Route path="/staff/*" element={<StaffDashboard />} />
           </Routes>
         </StaffLayout>
       </Suspense>
