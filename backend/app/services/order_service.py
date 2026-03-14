@@ -125,7 +125,7 @@ class OrderService:
         db: AsyncSession,
         order_id: UUID,
     ) -> Order | None:
-        """Get order with items, prescriptions, and pharmacy."""
+        """Get order with items, prescriptions, pharmacy, and user."""
         stmt = (
             select(Order)
             .where(Order.id == order_id)
@@ -133,6 +133,7 @@ class OrderService:
                 selectinload(Order.items),
                 selectinload(Order.prescriptions),
                 selectinload(Order.pharmacy),
+                selectinload(Order.user),
             )
         )
         result = await db.execute(stmt)
@@ -193,8 +194,7 @@ class OrderService:
         order.confirmed_at = datetime.now(timezone.utc)
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def cancel_order(
         self,
@@ -217,8 +217,7 @@ class OrderService:
         order.cancelled_at = datetime.now(timezone.utc)
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def list_pharmacy_orders(
         self,
@@ -268,8 +267,7 @@ class OrderService:
         order.staff_id = staff_id
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def price_order(
         self,
@@ -306,8 +304,7 @@ class OrderService:
                     items_by_id[item_id].total_price = ip.get("total_price")
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def mark_ready(
         self,
@@ -329,8 +326,7 @@ class OrderService:
         order.ready_at = datetime.now(timezone.utc)
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def mark_complete(
         self,
@@ -352,8 +348,7 @@ class OrderService:
         order.completed_at = datetime.now(timezone.utc)
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def reject_order(
         self,
@@ -377,8 +372,7 @@ class OrderService:
         order.rejected_at = datetime.now(timezone.utc)
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
 
     async def reorder(
         self,

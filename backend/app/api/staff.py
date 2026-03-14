@@ -419,8 +419,9 @@ async def upload_reply_image(
     # Update order record
     order.reply_image_key = file_key
     await db.commit()
-    await db.refresh(order)
 
+    # Re-fetch with all relationships loaded (including user)
+    order = await order_service.get_order(db, order_id)
     return _staff_order_response(order)
 
 

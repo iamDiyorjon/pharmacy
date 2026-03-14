@@ -22,4 +22,4 @@ class PharmacyStaff(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     pharmacy = relationship("Pharmacy", back_populates="staff")
-    orders = relationship("Order", back_populates="staff_member", lazy="selectin")
+    orders = relationship("Order", back_populates="staff_member", lazy="noload")

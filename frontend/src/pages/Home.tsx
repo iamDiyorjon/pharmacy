@@ -73,10 +73,9 @@ function PharmacyCard({ pharmacy, onSearch }: PharmacyCardProps) {
       <button
         style={{
           ...cardStyles.btn,
-          ...(pharmacy.is_open ? cardStyles.btnOpen : cardStyles.btnDisabled),
+          ...cardStyles.btnOpen,
         }}
         onClick={onSearch}
-        disabled={!pharmacy.is_open}
       >
         {t('home.searchMedicines')}
       </button>

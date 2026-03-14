@@ -19,6 +19,6 @@ class Pharmacy(Base, UUIDMixin, TimestampMixin):
     closes_at: Mapped[time] = mapped_column(Time, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    staff = relationship("PharmacyStaff", back_populates="pharmacy", lazy="selectin")
-    orders = relationship("Order", back_populates="pharmacy", lazy="selectin")
-    medicine_availability = relationship("MedicineAvailability", back_populates="pharmacy", lazy="selectin")
+    staff = relationship("PharmacyStaff", back_populates="pharmacy", lazy="noload")
+    orders = relationship("Order", back_populates="pharmacy", lazy="noload")
+    medicine_availability = relationship("MedicineAvailability", back_populates="pharmacy", lazy="noload")

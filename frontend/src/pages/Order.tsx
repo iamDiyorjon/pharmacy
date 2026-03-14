@@ -106,8 +106,8 @@ export default function Order() {
           >
             <option value="">{t('order.selectPharmacy')}</option>
             {pharmacies.map((p) => (
-              <option key={p.id} value={p.id} disabled={!p.is_open}>
-                {p.name} {p.is_open ? '' : `(${t('home.closed')})`}
+              <option key={p.id} value={p.id}>
+                {p.name}
               </option>
             ))}
           </select>
