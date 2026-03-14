@@ -17,7 +17,8 @@ import logging
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from aiogram import Bot
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ from app.db.session import get_db
 from app.models.order import OrderStatus
 from app.models.staff import PharmacyStaff
 from app.services.medicine_service import MedicineService
+from app.services.notification_service import notify_customer
 from app.services.order_service import OrderService
 from app.services.storage_service import storage
 
@@ -101,6 +103,8 @@ class StaffOrderResponse(BaseModel):
     staff_id: str | None
     user_first_name: str
     user_phone: str | None
+    user_telegram_username: str | None = None
+    user_telegram_id: int | None = None
     created_at: str
     reply_image_url: str | None = None
     items: list[OrderItemResponse] = []
@@ -143,6 +147,48 @@ class MedicineListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _get_bot(request: Request) -> Bot:
+    return request.app.state.bot
+
+
+async def _notify_order_status(bot: Bot, order, status_key: str, extra: str = "") -> None:
+    """Fire-and-forget notification to customer about order status change."""
+    try:
+        if not order.user or not order.user.telegram_user_id:
+            return
+        lang = order.user.language_code or "uz"
+        price_str = f"{float(order.total_price):,.0f} {order.currency}" if order.total_price else ""
+        messages = {
+            "priced": {
+                "uz": f"💊 Buyurtma #{order.order_number} narxlandi: {price_str}\nTasdiqlash uchun ilovaga kiring.",
+                "ru": f"💊 Заказ #{order.order_number} оценён: {price_str}\nОткройте приложение для подтверждения.",
+                "en": f"💊 Order #{order.order_number} priced: {price_str}\nOpen the app to confirm.",
+            },
+            "ready": {
+                "uz": f"✅ Buyurtma #{order.order_number} tayyor! Olib ketishingiz mumkin.",
+                "ru": f"✅ Заказ #{order.order_number} готов! Можете забрать.",
+                "en": f"✅ Order #{order.order_number} is ready for pickup!",
+            },
+            "completed": {
+                "uz": f"🎉 Buyurtma #{order.order_number} yakunlandi. Rahmat!",
+                "ru": f"🎉 Заказ #{order.order_number} завершён. Спасибо!",
+                "en": f"🎉 Order #{order.order_number} completed. Thank you!",
+            },
+            "rejected": {
+                "uz": f"❌ Buyurtma #{order.order_number} rad etildi.\nSabab: {extra}",
+                "ru": f"❌ Заказ #{order.order_number} отклонён.\nПричина: {extra}",
+                "en": f"❌ Order #{order.order_number} rejected.\nReason: {extra}",
+            },
+        }
+        status_msgs = messages.get(status_key)
+        if not status_msgs:
+            return
+        text = status_msgs.get(lang, status_msgs["uz"])
+        await notify_customer(bot, order.user.telegram_user_id, text)
+    except Exception:
+        logger.exception("Failed to send order status notification")
+
+
 def _staff_order_response(order) -> StaffOrderResponse:
     reply_image_url = (
         f"/api/v1/orders/{order.id}/reply-image" if order.reply_image_key else None
@@ -161,6 +207,8 @@ def _staff_order_response(order) -> StaffOrderResponse:
         staff_id=str(order.staff_id) if order.staff_id else None,
         user_first_name=order.user.first_name if order.user else "Unknown",
         user_phone=order.user.phone if order.user else None,
+        user_telegram_username=order.user.telegram_username if order.user else None,
+        user_telegram_id=order.user.telegram_user_id if order.user else None,
         created_at=order.created_at.isoformat() if order.created_at else "",
         reply_image_url=reply_image_url,
         items=[
@@ -253,6 +301,7 @@ async def get_staff_order(
 async def price_order(
     order_id: uuid.UUID,
     body: PriceOrderRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
@@ -274,6 +323,7 @@ async def price_order(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    await _notify_order_status(_get_bot(request), order, "priced")
     return _staff_order_response(order)
 
 
@@ -289,6 +339,7 @@ async def price_order(
 )
 async def mark_ready(
     order_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
@@ -296,6 +347,7 @@ async def mark_ready(
         order = await order_service.mark_ready(db, order_id=order_id, staff_id=staff.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await _notify_order_status(_get_bot(request), order, "ready")
     return _staff_order_response(order)
 
 
@@ -311,6 +363,7 @@ async def mark_ready(
 )
 async def mark_complete(
     order_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
@@ -318,6 +371,7 @@ async def mark_complete(
         order = await order_service.mark_complete(db, order_id=order_id, staff_id=staff.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await _notify_order_status(_get_bot(request), order, "completed")
     return _staff_order_response(order)
 
 
@@ -334,6 +388,7 @@ async def mark_complete(
 async def reject_order(
     order_id: uuid.UUID,
     body: RejectOrderRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
@@ -343,6 +398,7 @@ async def reject_order(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await _notify_order_status(_get_bot(request), order, "rejected", extra=body.reason)
     return _staff_order_response(order)
 
 

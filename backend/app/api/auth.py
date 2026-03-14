@@ -201,6 +201,7 @@ async def auth_init(
 
     first_name: str = tg_user.get("first_name") or "Unknown"
     last_name: str | None = tg_user.get("last_name")
+    username: str | None = tg_user.get("username")
     language_code: str = tg_user.get("language_code") or "uz"
 
     # Upsert user -----------------------------------------------------------
@@ -211,6 +212,7 @@ async def auth_init(
     if user is None:
         user = User(
             telegram_user_id=telegram_user_id,
+            telegram_username=username,
             first_name=first_name,
             last_name=last_name,
             language_code=language_code,
@@ -226,6 +228,9 @@ async def auth_init(
             changed = True
         if user.last_name != last_name:
             user.last_name = last_name
+            changed = True
+        if user.telegram_username != username:
+            user.telegram_username = username
             changed = True
         if user.language_code != language_code:
             user.language_code = language_code

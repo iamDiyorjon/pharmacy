@@ -117,6 +117,8 @@ export interface StaffOrder {
   staff_id: string | null;
   user_first_name: string;
   user_phone: string | null;
+  user_telegram_username: string | null;
+  user_telegram_id: number | null;
   created_at: string;
   reply_image_url: string | null;
   items: OrderItem[];

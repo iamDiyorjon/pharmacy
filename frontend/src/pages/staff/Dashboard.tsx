@@ -145,6 +145,9 @@ export default function StaffDashboard() {
                         {order.user_phone && (
                           <span style={styles.customerPhone}>{order.user_phone}</span>
                         )}
+                        {!order.user_phone && order.user_telegram_username && (
+                          <span style={styles.customerPhone}>@{order.user_telegram_username}</span>
+                        )}
                       </div>
                     </td>
                     <td style={styles.td}>

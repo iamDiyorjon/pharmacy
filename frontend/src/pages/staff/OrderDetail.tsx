@@ -25,7 +25,6 @@ export default function StaffOrderDetail() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Pricing state
-  const [totalPrice, setTotalPrice] = useState('');
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
 
   // Rejection state
@@ -46,9 +45,6 @@ export default function StaffOrderDetail() {
         prices[item.id] = item.unit_price?.toString() ?? '';
       });
       setItemPrices(prices);
-      if (data.total_price !== null) {
-        setTotalPrice(data.total_price.toString());
-      }
     } catch {
       setError(t('errors.orderNotFound'));
     } finally {
@@ -61,7 +57,7 @@ export default function StaffOrderDetail() {
   }, [fetchOrder]);
 
   async function handlePrice() {
-    if (!id || !totalPrice) return;
+    if (!id || totalPrice <= 0) return;
     setActionLoading(true);
     try {
       const items: PriceOrderItem[] = Object.entries(itemPrices)
@@ -72,7 +68,7 @@ export default function StaffOrderDetail() {
         }));
 
       const updated = await priceOrder(id, {
-        total_price: parseFloat(totalPrice),
+        total_price: totalPrice,
         items: items.length > 0 ? items : undefined,
       });
       setOrder((prev) => (prev ? { ...prev, ...updated } : null));
@@ -151,6 +147,12 @@ export default function StaffOrderDetail() {
     );
   if (!order) return null;
 
+  // Auto-calculate total price from item prices × quantities
+  const totalPrice = order.items.reduce((sum, item) => {
+    const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
+    return sum + unitPrice * item.quantity;
+  }, 0);
+
   const isTerminal = ['completed', 'cancelled', 'rejected'].includes(order.status);
   const canEditPrice = order.status === 'created' || order.status === 'priced';
 
@@ -195,6 +197,9 @@ export default function StaffOrderDetail() {
             <InfoRow label={t('settings.firstName')} value={order.user_first_name} />
             {order.user_phone && (
               <InfoRow label={t('settings.phone')} value={order.user_phone} />
+            )}
+            {order.user_telegram_username && (
+              <InfoRow label="Telegram" value={`@${order.user_telegram_username}`} />
             )}
             <InfoRow
               label={t('order.orderSummary')}
@@ -368,18 +373,13 @@ export default function StaffOrderDetail() {
                   : t('staff.priceOrder')}
               </h2>
               <label style={styles.inputLabel}>{t('staff.totalPrice')}</label>
-              <input
-                style={styles.totalInput}
-                type="number"
-                min="0"
-                placeholder="0"
-                value={totalPrice}
-                onChange={(e) => setTotalPrice(e.target.value)}
-              />
+              <div style={styles.totalReadonly}>
+                {totalPrice > 0 ? `${totalPrice.toLocaleString()} ${order.currency}` : '—'}
+              </div>
               <button
                 style={styles.btnPrimary}
                 onClick={handlePrice}
-                disabled={actionLoading || !totalPrice}
+                disabled={actionLoading || totalPrice <= 0}
               >
                 {order.status === 'priced'
                   ? t('staff.updatePrice', 'Narxni yangilash')
@@ -692,14 +692,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: '#888',
   },
-  totalInput: {
-    width: '100%',
+  totalReadonly: {
     padding: '10px 12px',
     borderRadius: 8,
-    border: '1px solid #ccc',
-    fontSize: 16,
+    background: '#e8f5e9',
+    fontSize: 18,
     fontWeight: 700,
-    boxSizing: 'border-box',
+    color: '#1b5e20',
   },
   totalDisplay: {
     fontSize: 22,

@@ -274,8 +274,8 @@ class OrderService:
         db: AsyncSession,
         order_id: UUID,
         staff_id: UUID,
-        total_price: float,
-        item_prices: list[dict] | None = None,
+        total_price: Decimal,
+        item_prices: dict[UUID, Decimal] | None = None,
     ) -> Order:
         """CREATED -> PRICED. Set total_price, priced_at."""
         order = await self._get_order_or_raise(db, order_id)
@@ -292,16 +292,14 @@ class OrderService:
         order.priced_at = datetime.now(timezone.utc)
 
         if item_prices:
-            # Load items to update individual prices
+            # Load items to update individual unit prices
             stmt = select(OrderItem).where(OrderItem.order_id == order_id)
             result = await db.execute(stmt)
-            items_by_id = {str(item.id): item for item in result.scalars().all()}
+            items_by_id = {item.id: item for item in result.scalars().all()}
 
-            for ip in item_prices:
-                item_id = str(ip.get("item_id"))
+            for item_id, unit_price in item_prices.items():
                 if item_id in items_by_id:
-                    items_by_id[item_id].unit_price = ip.get("unit_price")
-                    items_by_id[item_id].total_price = ip.get("total_price")
+                    items_by_id[item_id].unit_price = unit_price
 
         await db.commit()
         return await self.get_order(db, order_id)  # type: ignore[return-value]
