@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CI/CD Guide — Self-Hosted Runner Deployment</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a2e;
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+      color: #1a1a2e;
+    }
+    .subtitle {
+      text-align: center;
+      color: #6c757d;
+      font-size: 1.1rem;
+      margin-bottom: 48px;
+    }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 48px 0 20px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #4361ee;
+      color: #1a1a2e;
+    }
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 28px 0 12px;
+      color: #2d3436;
+    }
+    p { margin-bottom: 14px; color: #2d3436; }
+
+    /* Cards */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      margin: 20px 0;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border: 1px solid #e9ecef;
+    }
+
+    /* Flow diagram */
+    .flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+    .flow-step {
+      background: #fff;
+      border: 2px solid #4361ee;
+      border-radius: 14px;
+      padding: 20px 28px;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+    .flow-step.highlight {
+      background: linear-gradient(135deg, #4361ee, #3a56d4);
+      color: #fff;
+      border-color: #4361ee;
+    }
+    .flow-step.success {
+      background: linear-gradient(135deg, #2ecc71, #27ae60);
+      color: #fff;
+      border-color: #27ae60;
+    }
+    .flow-step strong { font-size: 1.05rem; }
+    .flow-step .detail { font-size: 0.9rem; opacity: 0.85; margin-top: 6px; }
+    .flow-arrow {
+      font-size: 1.8rem;
+      color: #4361ee;
+      line-height: 1;
+      padding: 4px 0;
+    }
+
+    /* Runner diagram */
+    .runner-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    .runner-box {
+      background: #fff;
+      border: 2px solid #dee2e6;
+      border-radius: 14px;
+      padding: 24px;
+      width: 280px;
+      text-align: center;
+    }
+    .runner-box.github { border-color: #24292e; }
+    .runner-box.github .box-icon { background: #24292e; }
+    .runner-box.vps { border-color: #4361ee; }
+    .runner-box.vps .box-icon { background: #4361ee; }
+    .box-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+      font-size: 1.4rem;
+    }
+    .runner-arrows {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+    .runner-arrows span { font-size: 1.5rem; color: #4361ee; }
+
+    /* Architecture */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .arch-box {
+      background: #f1f3f5;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid #dee2e6;
+    }
+    .arch-box .icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .arch-box .name { font-weight: 700; font-size: 0.95rem; }
+    .arch-box .tech { font-size: 0.8rem; color: #6c757d; }
+
+    /* Code blocks */
+    pre {
+      background: #1a1a2e;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 0.88rem;
+      line-height: 1.8;
+      margin: 12px 0;
+    }
+    code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .inline-code {
+      background: #e9ecef;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      color: #e74c3c;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.95rem;
+    }
+    th {
+      background: #f1f3f5;
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 2px solid #dee2e6;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    /* Benefits list */
+    .benefits {
+      list-style: none;
+      padding: 0;
+    }
+    .benefits li {
+      padding: 10px 0 10px 36px;
+      position: relative;
+      font-size: 1rem;
+    }
+    .benefits li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      width: 24px; height: 24px;
+      background: #2ecc71;
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      top: 10px;
+    }
+
+    /* Steps list */
+    .steps { list-style: none; padding: 0; counter-reset: step; }
+    .steps li {
+      padding: 12px 0 12px 48px;
+      position: relative;
+      counter-increment: step;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0; top: 10px;
+      width: 32px; height: 32px;
+      background: #4361ee;
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    /* Status icons */
+    .status-table td:first-child { font-size: 1.3rem; text-align: center; width: 60px; }
+
+    /* Divider */
+    hr {
+      border: none;
+      border-top: 1px solid #e9ecef;
+      margin: 40px 0;
+    }
+
+    /* Print */
+    @media print {
+      body { background: #fff; padding: 20px; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+      pre { background: #f5f5f5; color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <h1>CI/CD Guide</h1>
+    <p class="subtitle">Self-Hosted Runner Deployment</p>
+
+    <!-- What is CI/CD -->
+    <div class="card">
+      <h2 style="margin-top:0;">What is CI/CD?</h2>
+      <p>
+        <strong>CI/CD</strong> (Continuous Integration / Continuous Deployment) automatically deploys
+        your code to the server every time you push changes. No manual SSH, no manual commands —
+        just push and it's live.
+      </p>
+    </div>
+
+    <!-- How it works -->
+    <h2>How Our CI/CD Works</h2>
+    <div class="card">
+      <div class="flow">
+        <div class="flow-step">
+          <strong>1. Developer pushes code</strong>
+          <div class="detail"><code>git push origin main</code></div>
+        </div>
+        <div class="flow-arrow">▼</div>
+        <div class="flow-step highlight">
+          <strong>2. GitHub triggers the workflow</strong>
+          <div class="detail">.github/workflows/deploy.yml</div>
+        </div>
+        <div class="flow-arrow">▼</div>
+        <div class="flow-step">
+          <strong>3. Self-hosted runner receives the job</strong>
+          <div class="detail">A small service on your VPS that listens for GitHub jobs</div>
+        </div>
+        <div class="flow-arrow">▼</div>
+        <div class="flow-step">
+          <strong>4. Runner executes deploy commands</strong>
+          <div class="detail">git pull → docker build → docker up → DB migrate</div>
+        </div>
+        <div class="flow-arrow">▼</div>
+        <div class="flow-step success">
+          <strong>5. Site is updated!</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- What is a self-hosted runner -->
+    <h2>What is a Self-Hosted Runner?</h2>
+    <div class="card">
+      <p>
+        Normally, GitHub runs your CI/CD jobs on <strong>their servers</strong> (called "GitHub-hosted runners").
+        This costs money for private repositories.
+      </p>
+      <p>
+        A <strong>self-hosted runner</strong> is a small program installed on <strong>your own server</strong>
+        that does the same thing — for free.
+      </p>
+
+      <div class="runner-diagram">
+        <div class="runner-box github">
+          <div class="box-icon">🐙</div>
+          <strong>GitHub</strong>
+          <p style="font-size:0.85rem; color:#6c757d; margin-top:8px;">
+            "Someone pushed to main,<br>run the deploy"
+          </p>
+        </div>
+        <div class="runner-arrows">
+          <span>→</span>
+          job
+          <span>←</span>
+          result
+        </div>
+        <div class="runner-box vps">
+          <div class="box-icon">🖥️</div>
+          <strong>Your VPS</strong>
+          <p style="font-size:0.85rem; color:#6c757d; margin-top:8px;">
+            Runner receives the job<br>and deploys locally
+          </p>
+        </div>
+      </div>
+
+      <h3>Benefits</h3>
+      <ul class="benefits">
+        <li><strong>Free</strong> — no GitHub billing needed</li>
+        <li><strong>Faster</strong> — no SSH overhead, runs directly on the server</li>
+        <li><strong>No secrets needed</strong> — runner is already on the server</li>
+      </ul>
+    </div>
+
+    <!-- Workflow file -->
+    <h2>The Workflow File</h2>
+    <div class="card">
+      <p>Located at <span class="inline-code">.github/workflows/deploy.yml</span>:</p>
+      <pre><code><span style="color:#7c8aff">name:</span> Deploy to VPS
+
+<span style="color:#7c8aff">on:</span>
+  <span style="color:#7c8aff">push:</span>
+    <span style="color:#7c8aff">branches:</span> [main]     <span style="color:#6c757d"># ← triggers only on push to main</span>
+
+<span style="color:#7c8aff">jobs:</span>
+  <span style="color:#7c8aff">deploy:</span>
+    <span style="color:#7c8aff">runs-on:</span> self-hosted  <span style="color:#6c757d"># ← uses our VPS runner, not GitHub's</span>
+    <span style="color:#7c8aff">steps:</span>
+      - <span style="color:#7c8aff">name:</span> Deploy
+        <span style="color:#7c8aff">run:</span> |
+          cd /var/www/&lt;project&gt;
+          git pull origin main
+          docker compose -f docker-compose.prod.yml build
+          docker compose -f docker-compose.prod.yml up -d
+          docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head</code></pre>
+    </div>
+
+    <!-- How to deploy -->
+    <h2>Step-by-Step: How to Deploy</h2>
+    <div class="card">
+      <h3>The Easy Way (automatic)</h3>
+      <ol class="steps">
+        <li>Make your code changes</li>
+        <li>Commit and push to <span class="inline-code">main</span>:
+          <pre><code>git add .
+git commit -m "Your change description"
+git push origin main</code></pre>
+        </li>
+        <li>Go to your repository's <strong>Actions</strong> tab on GitHub</li>
+        <li>Green checkmark = deployed successfully</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>Check Deploy Status</h3>
+      <p>Go to: <strong>GitHub → Your Repository → Actions tab</strong></p>
+      <table class="status-table">
+        <thead><tr><th>Icon</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>✅</td><td>Deploy succeeded</td></tr>
+          <tr><td>❌</td><td>Deploy failed — click to see the error</td></tr>
+          <tr><td>🟡</td><td>Deploy is running</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>If Deploy Fails</h3>
+      <ol class="steps">
+        <li>Click the failed run on the Actions page</li>
+        <li>Click the "deploy" job</li>
+        <li>Read the error message</li>
+        <li>Fix the issue, push again — a new deploy triggers automatically</li>
+      </ol>
+    </div>
+
+    <!-- Architecture -->
+    <h2>Architecture Overview</h2>
+    <div class="card">
+      <p style="text-align:center; color:#6c757d; margin-bottom:16px;">Internet → Nginx → Docker Containers</p>
+      <div class="arch-grid">
+        <div class="arch-box">
+          <div class="icon">🌐</div>
+          <div class="name">Nginx</div>
+          <div class="tech">Reverse Proxy + SSL</div>
+        </div>
+        <div class="arch-box">
+          <div class="icon">⚛️</div>
+          <div class="name">Frontend</div>
+          <div class="tech">React + Nginx :5173</div>
+        </div>
+        <div class="arch-box">
+          <div class="icon">⚡</div>
+          <div class="name">Backend</div>
+          <div class="tech">FastAPI :8001</div>
+        </div>
+        <div class="arch-box">
+          <div class="icon">🗄️</div>
+          <div class="name">Database</div>
+          <div class="tech">PostgreSQL :5432</div>
+        </div>
+        <div class="arch-box">
+          <div class="icon">📦</div>
+          <div class="name">Storage</div>
+          <div class="tech">MinIO (S3) :9000</div>
+        </div>
+        <div class="arch-box">
+          <div class="icon">🤖</div>
+          <div class="name">Runner</div>
+          <div class="tech">GitHub Actions Agent</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paths -->
+    <h2>Important Paths on Server</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="inline-code">/var/www/&lt;project&gt;</span></td><td>Project root</td></tr>
+          <tr><td><span class="inline-code">/var/www/&lt;project&gt;/.env</span></td><td>Environment variables</td></tr>
+          <tr><td><span class="inline-code">/var/www/&lt;project&gt;/backend/</span></td><td>Backend source code</td></tr>
+          <tr><td><span class="inline-code">/var/www/&lt;project&gt;/frontend/</span></td><td>Frontend source code</td></tr>
+          <tr><td><span class="inline-code">/opt/actions-runner/</span></td><td>GitHub Actions runner</td></tr>
+          <tr><td><span class="inline-code">/etc/nginx/sites-available/&lt;project&gt;</span></td><td>Nginx config</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Commands -->
+    <h2>Useful Commands</h2>
+    <div class="card">
+      <pre><code><span style="color:#6c757d"># Check if runner is active</span>
+systemctl status actions.runner.&lt;org&gt;-&lt;repo&gt;.&lt;runner-name&gt;
+
+<span style="color:#6c757d"># Restart the runner</span>
+systemctl restart actions.runner.&lt;org&gt;-&lt;repo&gt;.&lt;runner-name&gt;
+
+<span style="color:#6c757d"># View backend logs</span>
+docker logs -f &lt;project&gt;-backend-1
+
+<span style="color:#6c757d"># View all containers</span>
+docker ps
+
+<span style="color:#6c757d"># Manual deploy (if CI/CD is down)</span>
+cd /var/www/&lt;project&gt;
+git pull origin main
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d</code></pre>
+    </div>
+
+    <!-- Summary -->
+    <h2>Summary</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td>How to deploy?</td><td>Push to <span class="inline-code">main</span> branch</td></tr>
+          <tr><td>Where to check status?</td><td>GitHub → Actions tab</td></tr>
+          <tr><td>How long does it take?</td><td>~30-60 seconds</td></tr>
+          <tr><td>Does it cost money?</td><td>No (self-hosted runner)</td></tr>
+          <tr><td>What if it fails?</td><td>Check Actions tab for error, fix, push again</td></tr>
+          <tr><td>Can I deploy manually?</td><td>Yes, SSH into server and run docker compose commands</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>
