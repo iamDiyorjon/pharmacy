@@ -8,6 +8,7 @@ POST /staff/orders/{id}/complete — complete order
 POST /staff/orders/{id}/reject  — reject order
 GET  /staff/medicines           — list medicines
 POST /staff/medicines           — add medicine
+POST /staff/medicines/import-excel — import medicines from Excel
 PUT  /staff/medicines/{id}/availability — toggle availability
 """
 
@@ -151,6 +152,60 @@ def _get_bot(request: Request) -> Bot:
     return request.app.state.bot
 
 
+def _build_priced_message(order, lang: str) -> str:
+    """Build a detailed pricing notification with item breakdown."""
+    price_str = f"{float(order.total_price):,.0f} {order.currency}" if order.total_price else ""
+
+    available_items = []
+    removed_items = []
+    for item in (order.items or []):
+        if item.unit_price is not None and float(item.unit_price) > 0:
+            line_total = float(item.unit_price) * item.quantity
+            available_items.append((item.medicine_name, item.quantity, line_total))
+        else:
+            removed_items.append(item.medicine_name)
+
+    # Build item lines
+    items_text = ""
+    if available_items:
+        for name, qty, total in available_items:
+            items_text += f"  • {name} x{qty} — {total:,.0f}\n"
+
+    removed_text = ""
+    if removed_items:
+        names = ", ".join(removed_items)
+        removed_text = {
+            "uz": f"\n❌ Mavjud emas: {names}",
+            "ru": f"\n❌ Нет в наличии: {names}",
+            "en": f"\n❌ Unavailable: {names}",
+        }.get(lang, f"\n❌ {names}")
+
+    templates = {
+        "uz": (
+            f"💊 Buyurtma #{order.order_number} narxlandi!\n\n"
+            f"{items_text}"
+            f"{removed_text}\n"
+            f"\n💰 Jami: {price_str}\n"
+            f"Tasdiqlash uchun ilovaga kiring."
+        ),
+        "ru": (
+            f"💊 Заказ #{order.order_number} оценён!\n\n"
+            f"{items_text}"
+            f"{removed_text}\n"
+            f"\n💰 Итого: {price_str}\n"
+            f"Откройте приложение для подтверждения."
+        ),
+        "en": (
+            f"💊 Order #{order.order_number} priced!\n\n"
+            f"{items_text}"
+            f"{removed_text}\n"
+            f"\n💰 Total: {price_str}\n"
+            f"Open the app to confirm."
+        ),
+    }
+    return templates.get(lang, templates["uz"])
+
+
 async def _notify_order_status(bot: Bot, order, status_key: str, extra: str = "") -> None:
     """Fire-and-forget notification to customer about order status change."""
     try:
@@ -158,12 +213,14 @@ async def _notify_order_status(bot: Bot, order, status_key: str, extra: str = ""
             return
         lang = order.user.language_code or "uz"
         price_str = f"{float(order.total_price):,.0f} {order.currency}" if order.total_price else ""
+
+        # Priced notifications use the detailed builder
+        if status_key == "priced":
+            text = _build_priced_message(order, lang)
+            await notify_customer(bot, order.user.telegram_user_id, text)
+            return
+
         messages = {
-            "priced": {
-                "uz": f"💊 Buyurtma #{order.order_number} narxlandi: {price_str}\nTasdiqlash uchun ilovaga kiring.",
-                "ru": f"💊 Заказ #{order.order_number} оценён: {price_str}\nОткройте приложение для подтверждения.",
-                "en": f"💊 Order #{order.order_number} priced: {price_str}\nOpen the app to confirm.",
-            },
             "ready": {
                 "uz": f"✅ Buyurtma #{order.order_number} tayyor! Olib ketishingiz mumkin.",
                 "ru": f"✅ Заказ #{order.order_number} готов! Можете забрать.",
@@ -559,6 +616,73 @@ async def add_medicine(
         category=med.category,
         requires_prescription=med.requires_prescription,
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /staff/medicines/import-excel
+# ---------------------------------------------------------------------------
+
+
+class ExcelImportResponse(BaseModel):
+    new: int
+    updated: int
+    skipped: int
+    errors: int
+
+
+ALLOWED_EXCEL_TYPES = {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/octet-stream",
+}
+MAX_EXCEL_SIZE = 20 * 1024 * 1024  # 20 MB
+
+
+@router.post(
+    "/medicines/import-excel",
+    response_model=ExcelImportResponse,
+    summary="Import medicines from an Excel file",
+)
+async def import_medicines_excel(
+    file: UploadFile,
+    staff: PharmacyStaff = Depends(get_current_staff),
+) -> ExcelImportResponse:
+    import tempfile
+
+    from app.services.drug_import import import_drugs_from_excel
+
+    # Validate file extension
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .xlsx or .xls files are allowed.",
+        )
+
+    # Read and validate size
+    file_data = await file.read()
+    if len(file_data) > MAX_EXCEL_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Maximum size is {MAX_EXCEL_SIZE // (1024 * 1024)} MB.",
+        )
+
+    # Write to a temp file and run import
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=True) as tmp:
+        tmp.write(file_data)
+        tmp.flush()
+        try:
+            stats = await import_drugs_from_excel(tmp.name, staff.pharmacy_id)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except Exception:
+            logger.exception("Excel import failed")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Import failed. Check file format.",
+            )
+
+    return ExcelImportResponse(**stats)
 
 
 # ---------------------------------------------------------------------------

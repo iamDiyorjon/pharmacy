@@ -1,115 +1,64 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
   getMedicines,
-  addMedicine,
   updateAvailability,
+  uploadMedicinesExcel,
   type MedicineWithAvailability,
-  type CreateMedicineRequest,
 } from '../../services/api';
 
 // ---------------------------------------------------------------------------
-// Add medicine form
+// Excel upload button
 // ---------------------------------------------------------------------------
-const EMPTY_FORM: CreateMedicineRequest = {
-  name: '',
-  name_ru: '',
-  name_uz: '',
-  description: '',
-  category: '',
-  requires_prescription: false,
-  is_available: true,
-};
-
-function AddMedicineForm({ onAdded }: { onAdded: () => void }) {
+function ExcelUploadButton({ onUploaded }: { onUploaded: () => void }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState<CreateMedicineRequest>(EMPTY_FORM);
-  const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function set<K extends keyof CreateMedicineRequest>(
-    key: K,
-    value: CreateMedicineRequest[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  async function handleSubmit() {
-    if (!form.name.trim()) return;
-    setSubmitting(true);
+    setUploading(true);
     setError(null);
+    setResult(null);
+
     try {
-      await addMedicine({
-        ...form,
-        name_ru: form.name_ru || undefined,
-        name_uz: form.name_uz || undefined,
-        description: form.description || undefined,
-        category: form.category || undefined,
-      });
-      setForm(EMPTY_FORM);
-      onAdded();
+      const stats = await uploadMedicinesExcel(file);
+      setResult(
+        `${t('staff.importSuccess')}: +${stats.new} / ~${stats.updated} / ${stats.errors} ${t('staff.importErrors')}`,
+      );
+      onUploaded();
     } catch {
       setError(t('errors.networkError'));
     } finally {
-      setSubmitting(false);
+      setUploading(false);
+      // Reset input so the same file can be re-selected
+      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
   return (
-    <div style={formStyles.wrapper}>
-      <h3 style={formStyles.title}>{t('staff.addMedicine')}</h3>
-      <div style={formStyles.row}>
-        {[
-          { key: 'name' as const, label: t('staff.medicineName'), required: true },
-          { key: 'name_ru' as const, label: t('staff.medicineNameRu') },
-          { key: 'name_uz' as const, label: t('staff.medicineNameUz') },
-          { key: 'category' as const, label: t('staff.category') },
-        ].map(({ key, label, required }) => (
-          <div key={key} style={formStyles.field}>
-            <label style={formStyles.label}>
-              {label}
-              {required && ' *'}
-            </label>
-            <input
-              style={formStyles.input}
-              value={(form[key] as string) ?? ''}
-              onChange={(e) => set(key, e.target.value)}
-              placeholder={label}
-            />
-          </div>
-        ))}
-      </div>
-      <div style={formStyles.field}>
-        <label style={formStyles.label}>{t('staff.description')}</label>
-        <input
-          style={formStyles.input}
-          value={form.description ?? ''}
-          onChange={(e) => set('description', e.target.value)}
-          placeholder={t('staff.description')}
-        />
-      </div>
-      <div style={formStyles.bottomRow}>
-        <div style={formStyles.checkRow}>
-          <input
-            id="rx-check"
-            type="checkbox"
-            checked={form.requires_prescription}
-            onChange={(e) => set('requires_prescription', e.target.checked)}
-          />
-          <label htmlFor="rx-check" style={formStyles.checkLabel}>
-            {t('staff.requiresPrescription')}
-          </label>
-        </div>
-        {error && <p style={formStyles.error}>{error}</p>}
-        <button
-          style={formStyles.submitBtn}
-          onClick={handleSubmit}
-          disabled={submitting || !form.name.trim()}
-        >
-          {submitting ? t('common.loading') : t('staff.addMedicine')}
-        </button>
-      </div>
+    <div style={uploadStyles.wrapper}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        style={{ display: 'none' }}
+        onChange={handleFile}
+      />
+      <button
+        style={styles.addBtn}
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+      >
+        {uploading ? t('common.loading') : t('staff.importExcel')}
+      </button>
+      {result && <span style={uploadStyles.success}>{result}</span>}
+      {error && <span style={uploadStyles.error}>{error}</span>}
     </div>
   );
 }
@@ -122,7 +71,6 @@ export default function StaffMedicineCatalog() {
   const lang = i18n.language;
   const [medicines, setMedicines] = useState<MedicineWithAvailability[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [search, setSearch] = useState('');
 
   async function load() {
@@ -178,22 +126,8 @@ export default function StaffMedicineCatalog() {
     <div style={styles.page}>
       <header style={styles.header}>
         <h1 style={styles.title}>{t('staff.medicines')}</h1>
-        <button
-          style={styles.addBtn}
-          onClick={() => setShowAddForm((v) => !v)}
-        >
-          {showAddForm ? t('common.close') : `+ ${t('staff.addMedicine')}`}
-        </button>
+        <ExcelUploadButton onUploaded={load} />
       </header>
-
-      {showAddForm && (
-        <AddMedicineForm
-          onAdded={() => {
-            setShowAddForm(false);
-            load();
-          }}
-        />
-      )}
 
       {/* Search */}
       <div style={styles.searchWrapper}>
@@ -395,59 +329,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-const formStyles: Record<string, React.CSSProperties> = {
+const uploadStyles: Record<string, React.CSSProperties> = {
   wrapper: {
-    marginBottom: 20,
-    padding: 20,
-    background: '#f8f9fa',
-    borderRadius: 10,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 14,
-  },
-  title: { margin: 0, fontSize: 16, fontWeight: 700 },
-  row: {
-    display: 'flex',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  field: {
-    flex: '1 1 200px',
-    minWidth: 0,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#666',
-    display: 'block',
-    marginBottom: 4,
-  },
-  input: {
-    width: '100%',
-    padding: '8px 10px',
-    borderRadius: 7,
-    border: '1px solid #ccc',
-    fontSize: 14,
-    boxSizing: 'border-box',
-  },
-  bottomRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 16,
-    flexWrap: 'wrap',
+    gap: 12,
   },
-  checkRow: { display: 'flex', alignItems: 'center', gap: 8 },
-  checkLabel: { fontSize: 13, fontWeight: 500 },
-  error: { color: '#e53935', fontSize: 12, margin: 0 },
-  submitBtn: {
-    padding: '10px 24px',
-    borderRadius: 8,
-    border: 'none',
-    background: '#1565c0',
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: 'pointer',
-    marginLeft: 'auto',
+  success: {
+    fontSize: 12,
+    color: '#2e7d32',
+    fontWeight: 500,
+  },
+  error: {
+    fontSize: 12,
+    color: '#e53935',
+    fontWeight: 500,
   },
 };

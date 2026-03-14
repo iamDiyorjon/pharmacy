@@ -26,6 +26,7 @@ export default function StaffOrderDetail() {
 
   // Pricing state
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
+  const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
 
   // Rejection state
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -60,16 +61,17 @@ export default function StaffOrderDetail() {
     if (!id || totalPrice <= 0) return;
     setActionLoading(true);
     try {
-      const items: PriceOrderItem[] = Object.entries(itemPrices)
-        .filter(([, v]) => v !== '')
-        .map(([order_item_id, unit_price]) => ({
-          order_item_id,
-          unit_price: parseFloat(unit_price),
-        }));
+      // Build items list: included items get their price, excluded items get 0
+      const items: PriceOrderItem[] = (order?.items ?? []).map((item) => ({
+        order_item_id: item.id,
+        unit_price: excludedItems.has(item.id)
+          ? 0
+          : parseFloat(itemPrices[item.id] ?? '0') || 0,
+      }));
 
       const updated = await priceOrder(id, {
         total_price: totalPrice,
-        items: items.length > 0 ? items : undefined,
+        items,
       });
       setOrder((prev) => (prev ? { ...prev, ...updated } : null));
     } catch {
@@ -77,6 +79,18 @@ export default function StaffOrderDetail() {
     } finally {
       setActionLoading(false);
     }
+  }
+
+  function toggleExclude(itemId: string) {
+    setExcludedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
   }
 
   async function handleReady() {
@@ -147,8 +161,9 @@ export default function StaffOrderDetail() {
     );
   if (!order) return null;
 
-  // Auto-calculate total price from item prices × quantities
+  // Auto-calculate total price from item prices × quantities (skip excluded)
   const totalPrice = order.items.reduce((sum, item) => {
+    if (excludedItems.has(item.id)) return sum;
     const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
     return sum + unitPrice * item.quantity;
   }, 0);
@@ -214,6 +229,7 @@ export default function StaffOrderDetail() {
               <table style={styles.itemTable}>
                 <thead>
                   <tr>
+                    {canEditPrice && <th style={styles.itemThCenter}></th>}
                     <th style={styles.itemTh}>{t('medicine.name')}</th>
                     <th style={styles.itemThCenter}>{t('order.quantity')}</th>
                     <th style={styles.itemThRight}>
@@ -224,19 +240,45 @@ export default function StaffOrderDetail() {
                 </thead>
                 <tbody>
                   {order.items.map((item) => {
+                    const isExcluded = excludedItems.has(item.id);
                     const priceVal = parseFloat(itemPrices[item.id] ?? '0') || 0;
+                    const rowStyle = isExcluded
+                      ? { opacity: 0.4, textDecoration: 'line-through' as const }
+                      : {};
+
                     return (
                       <tr key={item.id}>
-                        <td style={styles.itemTd}>{item.medicine_name}</td>
-                        <td style={styles.itemTdCenter}>{item.quantity}</td>
-                        <td style={styles.itemTdRight}>
+                        {canEditPrice && (
+                          <td style={styles.itemTdCenter}>
+                            <input
+                              type="checkbox"
+                              checked={!isExcluded}
+                              onChange={() => toggleExclude(item.id)}
+                              title={isExcluded
+                                ? t('staff.includeItem', 'Qo\'shish')
+                                : t('staff.excludeItem', 'Olib tashlash')}
+                              style={{ cursor: 'pointer', width: 18, height: 18 }}
+                            />
+                          </td>
+                        )}
+                        <td style={{ ...styles.itemTd, ...rowStyle }}>
+                          {item.medicine_name}
+                        </td>
+                        <td style={{ ...styles.itemTdCenter, ...rowStyle }}>
+                          {item.quantity}
+                        </td>
+                        <td style={{ ...styles.itemTdRight, ...rowStyle }}>
                           {canEditPrice ? (
                             <input
-                              style={styles.priceInput}
+                              style={{
+                                ...styles.priceInput,
+                                ...(isExcluded ? { opacity: 0.3, pointerEvents: 'none' as const } : {}),
+                              }}
                               type="number"
                               min="0"
                               placeholder="0"
-                              value={itemPrices[item.id] ?? ''}
+                              value={isExcluded ? '' : (itemPrices[item.id] ?? '')}
+                              disabled={isExcluded}
                               onChange={(e) =>
                                 setItemPrices((prev) => ({
                                   ...prev,
@@ -244,16 +286,20 @@ export default function StaffOrderDetail() {
                                 }))
                               }
                             />
-                          ) : item.unit_price !== null ? (
+                          ) : item.unit_price !== null && item.unit_price > 0 ? (
                             `${item.unit_price.toLocaleString()} ${order.currency}`
+                          ) : item.unit_price === 0 ? (
+                            <span style={{ color: '#c62828', fontWeight: 600, fontSize: 12 }}>
+                              {t('staff.unavailable')}
+                            </span>
                           ) : (
                             '—'
                           )}
                         </td>
                         {canEditPrice && (
-                          <td style={styles.itemTdRight}>
+                          <td style={{ ...styles.itemTdRight, ...rowStyle }}>
                             <span style={styles.subtotal}>
-                              {priceVal > 0
+                              {!isExcluded && priceVal > 0
                                 ? `${(priceVal * item.quantity).toLocaleString()} ${order.currency}`
                                 : '—'}
                             </span>

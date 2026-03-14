@@ -437,4 +437,24 @@ export async function updateAvailability(
   });
 }
 
+export interface ExcelImportResult {
+  new: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+}
+
+export async function uploadMedicinesExcel(
+  file: File,
+): Promise<ExcelImportResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await apiClient.post<ExcelImportResult>(
+    '/staff/medicines/import-excel',
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data;
+}
+
 export default apiClient;
