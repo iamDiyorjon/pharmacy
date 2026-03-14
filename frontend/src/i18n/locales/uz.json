@@ -33,7 +33,13 @@
     "changePharmacy": "O'zgartirish",
     "popular": "Mashhur dorilar",
     "quickSearch": "Tez qidirish",
-    "from": "dan"
+    "from": "dan",
+    "details": "Batafsil",
+    "manufacturer": "Ishlab chiqaruvchi",
+    "expiryDate": "Yaroqlilik muddati",
+    "inStock": "Mavjud",
+    "pieces": "dona",
+    "close": "Yopish"
   },
   "order": {
     "title": "Buyurtma",

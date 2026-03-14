@@ -36,6 +36,7 @@ class AvailabilityEntry(BaseModel):
     is_available: bool
     price: float | None = None
     quantity: float | None = None
+    expiry_date: str | None = None
 
 
 class MedicineResponse(BaseModel):
@@ -72,6 +73,7 @@ def _medicine_to_response(med) -> MedicineResponse:
             is_available=a.is_available,
             price=float(a.price) if a.price is not None else None,
             quantity=float(a.quantity) if a.quantity is not None else None,
+            expiry_date=a.expiry_date.isoformat() if a.expiry_date else None,
         ))
     return MedicineResponse(
         id=str(med.id),

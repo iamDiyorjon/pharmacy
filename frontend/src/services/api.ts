@@ -43,6 +43,7 @@ export interface MedicineAvailabilityEntry {
   is_available: boolean;
   price: number | null;
   quantity: number | null;
+  expiry_date: string | null;
 }
 
 export interface MedicineWithAvailability extends Medicine {

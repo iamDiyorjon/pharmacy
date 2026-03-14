@@ -85,6 +85,93 @@ function QtyControl({ quantity, onIncrement, onDecrement, compact }: QtyControlP
 }
 
 // ---------------------------------------------------------------------------
+// Medicine Detail Modal
+// ---------------------------------------------------------------------------
+interface DetailModalProps {
+  medicine: MedicineWithAvailability;
+  pharmacyId: string;
+  onClose: () => void;
+}
+
+function MedicineDetailModal({ medicine, pharmacyId, onClose }: DetailModalProps) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+
+  const displayName =
+    (lang === 'uz' && medicine.name_uz) ||
+    (lang === 'ru' && medicine.name_ru) ||
+    medicine.name;
+
+  const avail = medicine.availability.find((a) => a.pharmacy_id === pharmacyId);
+  const price = avail?.price != null && avail.price > 0 ? avail.price : null;
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.sheet} onClick={(e) => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>{displayName}</h2>
+          <button style={modalStyles.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        <div style={modalStyles.body}>
+          {/* Price */}
+          {price != null && (
+            <div style={modalStyles.priceRow}>
+              <span style={modalStyles.priceValue}>
+                {price.toLocaleString('ru-RU')} {t('common.sum')}
+              </span>
+            </div>
+          )}
+
+          {/* Info rows */}
+          <div style={modalStyles.rows}>
+            {medicine.manufacturer && (
+              <div style={modalStyles.row}>
+                <span style={modalStyles.label}>{t('search.manufacturer')}</span>
+                <span style={modalStyles.value}>{medicine.manufacturer}</span>
+              </div>
+            )}
+            {medicine.category && (
+              <div style={modalStyles.row}>
+                <span style={modalStyles.label}>{t('staff.category')}</span>
+                <span style={modalStyles.value}>{medicine.category}</span>
+              </div>
+            )}
+            {avail?.expiry_date && (
+              <div style={modalStyles.row}>
+                <span style={modalStyles.label}>{t('search.expiryDate')}</span>
+                <span style={modalStyles.value}>
+                  {new Date(avail.expiry_date).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+            {avail?.quantity != null && avail.quantity > 0 && (
+              <div style={modalStyles.row}>
+                <span style={modalStyles.label}>{t('search.inStock')}</span>
+                <span style={modalStyles.value}>
+                  {avail.quantity} {t('search.pieces')}
+                </span>
+              </div>
+            )}
+            {medicine.requires_prescription && (
+              <div style={modalStyles.row}>
+                <span style={modalStyles.label}>{t('search.requiresPrescription')}</span>
+                <span style={{ ...modalStyles.value, color: '#e65100' }}>✓</span>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          {medicine.description && (
+            <p style={modalStyles.description}>{medicine.description}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // MedicineCard (for search results — detailed)
 // ---------------------------------------------------------------------------
 interface MedicineCardProps {
@@ -94,9 +181,10 @@ interface MedicineCardProps {
   onAdd: () => void;
   onIncrement: () => void;
   onDecrement: () => void;
+  onViewDetail: () => void;
 }
 
-function MedicineCard({ medicine, selectedPharmacyId, quantity, onAdd, onIncrement, onDecrement }: MedicineCardProps) {
+function MedicineCard({ medicine, selectedPharmacyId, quantity, onAdd, onIncrement, onDecrement, onViewDetail }: MedicineCardProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
@@ -131,19 +219,24 @@ function MedicineCard({ medicine, selectedPharmacyId, quantity, onAdd, onIncreme
             <span style={cardStyles.category}>{medicine.category}</span>
           )}
         </div>
-        {isAvailable && (
-          quantity > 0 ? (
-            <QtyControl
-              quantity={quantity}
-              onIncrement={onIncrement}
-              onDecrement={onDecrement}
-            />
-          ) : (
-            <button style={cardStyles.addBtn} onClick={onAdd}>
-              + {t('search.addToOrder')}
-            </button>
-          )
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button style={cardStyles.infoBtn} onClick={onViewDetail} title={t('search.details')}>
+            ℹ
+          </button>
+          {isAvailable && (
+            quantity > 0 ? (
+              <QtyControl
+                quantity={quantity}
+                onIncrement={onIncrement}
+                onDecrement={onDecrement}
+              />
+            ) : (
+              <button style={cardStyles.addBtn} onClick={onAdd}>
+                + {t('search.addToOrder')}
+              </button>
+            )
+          )}
+        </div>
       </div>
     </div>
   );
@@ -159,9 +252,10 @@ interface PopularCardProps {
   onAdd: () => void;
   onIncrement: () => void;
   onDecrement: () => void;
+  onViewDetail: () => void;
 }
 
-function PopularCard({ medicine, pharmacyId, quantity, onAdd, onIncrement, onDecrement }: PopularCardProps) {
+function PopularCard({ medicine, pharmacyId, quantity, onAdd, onIncrement, onDecrement, onViewDetail }: PopularCardProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
@@ -204,22 +298,31 @@ function PopularCard({ medicine, pharmacyId, quantity, onAdd, onIncrement, onDec
         )}
       </div>
 
-      {/* Bottom: Add button or quantity controls */}
-      {inCart ? (
-        <QtyControl
-          quantity={quantity}
-          onIncrement={onIncrement}
-          onDecrement={onDecrement}
-          compact
-        />
-      ) : (
+      {/* Bottom: info + add */}
+      <div style={popularStyles.bottomRow}>
         <button
-          style={popularStyles.addBtn}
-          onClick={(e) => { e.stopPropagation(); onAdd(); }}
+          style={popularStyles.infoBtn}
+          onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
+          title={t('search.details')}
         >
-          + {t('search.addToOrder')}
+          ℹ
         </button>
-      )}
+        {inCart ? (
+          <QtyControl
+            quantity={quantity}
+            onIncrement={onIncrement}
+            onDecrement={onDecrement}
+            compact
+          />
+        ) : (
+          <button
+            style={popularStyles.addBtn}
+            onClick={(e) => { e.stopPropagation(); onAdd(); }}
+          >
+            + {t('search.addToOrder')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -248,6 +351,7 @@ export default function Search() {
   const [loading, setLoading] = useState(false);
   const [popularLoading, setPopularLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [detailMedicine, setDetailMedicine] = useState<MedicineWithAvailability | null>(null);
 
   const debouncedQuery = useDebounce(query, 350);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -450,6 +554,7 @@ export default function Search() {
                   onAdd={() => addToCart(m)}
                   onIncrement={() => incrementItem(m.id)}
                   onDecrement={() => decrementItem(m.id)}
+                  onViewDetail={() => setDetailMedicine(m)}
                 />
               ))}
             </div>
@@ -492,6 +597,7 @@ export default function Search() {
                         onAdd={() => addToCart(m)}
                         onIncrement={() => incrementItem(m.id)}
                         onDecrement={() => decrementItem(m.id)}
+                        onViewDetail={() => setDetailMedicine(m)}
                       />
                     ))}
                   </div>
@@ -509,6 +615,15 @@ export default function Search() {
             </button>
           )}
         </>
+      )}
+
+      {/* Detail modal */}
+      {detailMedicine && (
+        <MedicineDetailModal
+          medicine={detailMedicine}
+          pharmacyId={selectedPharmacyId}
+          onClose={() => setDetailMedicine(null)}
+        />
       )}
     </div>
   );
@@ -766,6 +881,21 @@ const cardStyles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     cursor: 'pointer',
   },
+  infoBtn: {
+    flexShrink: 0,
+    width: 30,
+    height: 30,
+    borderRadius: '50%',
+    border: '1px solid var(--tg-theme-hint-color, #ccc)',
+    background: 'transparent',
+    color: 'var(--tg-theme-hint-color, #888)',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 };
 
 const popularStyles: Record<string, React.CSSProperties> = {
@@ -820,8 +950,30 @@ const popularStyles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     marginBottom: 4,
   },
-  addBtn: {
+  bottomRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
     width: '100%',
+  },
+  infoBtn: {
+    flexShrink: 0,
+    width: 26,
+    height: 26,
+    borderRadius: '50%',
+    border: '1px solid var(--tg-theme-hint-color, #ccc)',
+    background: 'transparent',
+    color: 'var(--tg-theme-hint-color, #888)',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+  },
+  addBtn: {
+    flex: 1,
     padding: '6px 0',
     borderRadius: 7,
     border: 'none',
@@ -830,5 +982,101 @@ const popularStyles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     fontWeight: 600,
     cursor: 'pointer',
+  },
+};
+
+const modalStyles: Record<string, React.CSSProperties> = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '80vh',
+    background: 'var(--tg-theme-bg-color, #fff)',
+    borderRadius: '16px 16px 0 0',
+    overflow: 'auto',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 20px 12px',
+    borderBottom: '1px solid rgba(0,0,0,0.06)',
+  },
+  title: {
+    margin: 0,
+    fontSize: 17,
+    fontWeight: 700,
+    color: 'var(--tg-theme-text-color, #222)',
+    flex: 1,
+    marginRight: 12,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    border: 'none',
+    background: 'var(--tg-theme-secondary-bg-color, #f0f0f0)',
+    color: 'var(--tg-theme-hint-color, #888)',
+    fontSize: 16,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  body: {
+    padding: '16px 20px 24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  priceRow: {
+    padding: '10px 14px',
+    borderRadius: 10,
+    background: '#e8f5e9',
+  },
+  priceValue: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#1b5e20',
+  },
+  rows: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  row: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: '4px 0',
+    borderBottom: '1px solid rgba(0,0,0,0.04)',
+  },
+  label: {
+    fontSize: 14,
+    color: 'var(--tg-theme-hint-color, #888)',
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'var(--tg-theme-text-color, #222)',
+    textAlign: 'right',
+  },
+  description: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--tg-theme-hint-color, #666)',
+    lineHeight: 1.5,
   },
 };

@@ -33,7 +33,13 @@
     "changePharmacy": "Изменить",
     "popular": "Популярные лекарства",
     "quickSearch": "Быстрый поиск",
-    "from": "от"
+    "from": "от",
+    "details": "Подробнее",
+    "manufacturer": "Производитель",
+    "expiryDate": "Срок годности",
+    "inStock": "В наличии",
+    "pieces": "шт.",
+    "close": "Закрыть"
   },
   "order": {
     "title": "Заказ",

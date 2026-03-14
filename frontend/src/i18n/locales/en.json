@@ -33,7 +33,13 @@
     "changePharmacy": "Change",
     "popular": "Popular medicines",
     "quickSearch": "Quick search",
-    "from": "from"
+    "from": "from",
+    "details": "Details",
+    "manufacturer": "Manufacturer",
+    "expiryDate": "Expiry date",
+    "inStock": "In stock",
+    "pieces": "pcs",
+    "close": "Close"
   },
   "order": {
     "title": "Order",
