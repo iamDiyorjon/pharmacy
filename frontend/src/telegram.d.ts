@@ -56,6 +56,11 @@ interface TelegramWebApp {
   showConfirm(message: string, callback?: (confirmed: boolean) => void): void;
   addToHomeScreen?(): void;
   checkHomeScreenStatus?(callback: (status: string) => void): void;
+  requestFullscreen?(): void;
+  exitFullscreen?(): void;
+  isFullscreen?: boolean;
+  disableVerticalSwipes?(): void;
+  enableVerticalSwipes?(): void;
 
   showPopup(
     params: {
