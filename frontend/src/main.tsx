@@ -12,14 +12,10 @@ if (tg) {
   tg.expand();
 
   // Full-screen mode (Telegram Bot API 8.0+, hides the top bar)
-  if (typeof tg.requestFullscreen === 'function') {
-    tg.requestFullscreen();
-  }
+  try { tg.requestFullscreen?.(); } catch { /* unsupported version */ }
 
   // Prevent accidental close by swiping down
-  if (typeof tg.disableVerticalSwipes === 'function') {
-    tg.disableVerticalSwipes();
-  }
+  try { tg.disableVerticalSwipes?.(); } catch { /* unsupported version */ }
 }
 
 // Register service worker for PWA installability
