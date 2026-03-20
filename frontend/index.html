@@ -45,7 +45,8 @@
         color: var(--tg-theme-text-color, #222222);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        /* Prevent content from hiding behind iOS safe areas */
+        /* Safe areas: top for fullscreen mode, bottom for iOS home bar */
+        padding-top: var(--tg-content-safe-area-inset-top, var(--tg-safe-area-inset-top, 0px));
         padding-bottom: env(safe-area-inset-bottom);
       }
 
