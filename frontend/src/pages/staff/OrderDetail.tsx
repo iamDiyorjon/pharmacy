@@ -25,9 +25,9 @@ export default function StaffOrderDetail() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Pricing state
+  const [totalPrice, setTotalPrice] = useState('');
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
   const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
-  const [manualPrice, setManualPrice] = useState('');
 
   // Rejection state
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -47,9 +47,15 @@ export default function StaffOrderDetail() {
         prices[item.id] = item.unit_price?.toString() ?? '';
       });
       setItemPrices(prices);
-      // For prescription orders (no items), use stored total_price
-      if (data.items.length === 0 && data.total_price !== null) {
-        setManualPrice(data.total_price.toString());
+      if (data.total_price !== null) {
+        setTotalPrice(data.total_price.toString());
+      } else {
+        // Auto-calculate from item prices if no total yet
+        const sum = data.items.reduce((s, item) => {
+          const p = item.unit_price ?? 0;
+          return s + p * item.quantity;
+        }, 0);
+        if (sum > 0) setTotalPrice(sum.toString());
       }
     } catch {
       setError(t('errors.orderNotFound'));
@@ -63,7 +69,7 @@ export default function StaffOrderDetail() {
   }, [fetchOrder]);
 
   async function handlePrice() {
-    if (!id || totalPrice <= 0) return;
+    if (!id || !totalPrice || parseFloat(totalPrice) <= 0) return;
     setActionLoading(true);
     try {
       // Build items list: included items get their price, excluded items get 0
@@ -75,8 +81,8 @@ export default function StaffOrderDetail() {
       }));
 
       const updated = await priceOrder(id, {
-        total_price: totalPrice,
-        items,
+        total_price: parseFloat(totalPrice),
+        items: items.length > 0 ? items : undefined,
       });
       setOrder((prev) => (prev ? { ...prev, ...updated } : null));
     } catch {
@@ -166,15 +172,12 @@ export default function StaffOrderDetail() {
     );
   if (!order) return null;
 
-  // For orders with items: auto-calculate. For prescription orders (no items): use manual input.
-  const hasItems = order.items.length > 0;
-  const totalPrice = hasItems
-    ? order.items.reduce((sum, item) => {
-        if (excludedItems.has(item.id)) return sum;
-        const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
-        return sum + unitPrice * item.quantity;
-      }, 0)
-    : parseFloat(manualPrice) || 0;
+  // Auto-update total when item prices change
+  const calculatedTotal = order.items.reduce((sum, item) => {
+    if (excludedItems.has(item.id)) return sum;
+    const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
+    return sum + unitPrice * item.quantity;
+  }, 0);
 
   const isTerminal = ['completed', 'cancelled', 'rejected'].includes(order.status);
   const canEditPrice = order.status === 'created' || order.status === 'priced';
@@ -284,15 +287,20 @@ export default function StaffOrderDetail() {
                               }}
                               type="number"
                               min="0"
-                              placeholder="0"
+                              placeholder={t('staff.enterPrice', 'Narx kiriting')}
                               value={isExcluded ? '' : (itemPrices[item.id] ?? '')}
                               disabled={isExcluded}
-                              onChange={(e) =>
-                                setItemPrices((prev) => ({
-                                  ...prev,
-                                  [item.id]: e.target.value,
-                                }))
-                              }
+                              onChange={(e) => {
+                                const newPrices = { ...itemPrices, [item.id]: e.target.value };
+                                setItemPrices(newPrices);
+                                // Auto-update total from item prices
+                                const sum = (order?.items ?? []).reduce((s, it) => {
+                                  if (excludedItems.has(it.id)) return s;
+                                  const p = parseFloat(newPrices[it.id] ?? '0') || 0;
+                                  return s + p * it.quantity;
+                                }, 0);
+                                if (sum > 0) setTotalPrice(sum.toString());
+                              }}
                             />
                           ) : item.unit_price !== null && item.unit_price > 0 ? (
                             `${item.unit_price.toLocaleString()} ${order.currency}`
@@ -427,24 +435,18 @@ export default function StaffOrderDetail() {
                   : t('staff.priceOrder')}
               </h2>
               <label style={styles.inputLabel}>{t('staff.totalPrice')}</label>
-              {hasItems ? (
-                <div style={styles.totalReadonly}>
-                  {totalPrice > 0 ? `${totalPrice.toLocaleString()} ${order.currency}` : '—'}
-                </div>
-              ) : (
-                <input
-                  style={styles.totalInput}
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={manualPrice}
-                  onChange={(e) => setManualPrice(e.target.value)}
-                />
-              )}
+              <input
+                style={styles.totalInput}
+                type="number"
+                min="0"
+                placeholder="0"
+                value={totalPrice}
+                onChange={(e) => setTotalPrice(e.target.value)}
+              />
               <button
                 style={styles.btnPrimary}
                 onClick={handlePrice}
-                disabled={actionLoading || totalPrice <= 0}
+                disabled={actionLoading || !totalPrice || parseFloat(totalPrice) <= 0}
               >
                 {order.status === 'priced'
                   ? t('staff.updatePrice', 'Narxni yangilash')
