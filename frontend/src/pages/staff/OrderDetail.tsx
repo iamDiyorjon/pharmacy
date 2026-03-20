@@ -435,11 +435,16 @@ export default function StaffOrderDetail() {
                   : t('staff.priceOrder')}
               </h2>
               <label style={styles.inputLabel}>{t('staff.totalPrice')}</label>
+              {order.items.length > 0 && calculatedTotal > 0 && (
+                <div style={styles.calculatedHint}>
+                  {t('staff.calculatedTotal', 'Hisoblangan')}: {calculatedTotal.toLocaleString()} {order.currency}
+                </div>
+              )}
               <input
                 style={styles.totalInput}
                 type="number"
                 min="0"
-                placeholder="0"
+                placeholder={t('staff.enterPrice', 'Narx kiriting')}
                 value={totalPrice}
                 onChange={(e) => setTotalPrice(e.target.value)}
               />
@@ -775,6 +780,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 700,
     boxSizing: 'border-box',
+  },
+  calculatedHint: {
+    fontSize: 12,
+    color: '#1b5e20',
+    background: '#e8f5e9',
+    padding: '4px 8px',
+    borderRadius: 6,
+    fontWeight: 600,
   },
   totalDisplay: {
     fontSize: 22,
