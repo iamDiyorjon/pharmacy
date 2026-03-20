@@ -27,6 +27,7 @@ export default function StaffOrderDetail() {
   // Pricing state
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
   const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
+  const [manualPrice, setManualPrice] = useState('');
 
   // Rejection state
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -46,6 +47,10 @@ export default function StaffOrderDetail() {
         prices[item.id] = item.unit_price?.toString() ?? '';
       });
       setItemPrices(prices);
+      // For prescription orders (no items), use stored total_price
+      if (data.items.length === 0 && data.total_price !== null) {
+        setManualPrice(data.total_price.toString());
+      }
     } catch {
       setError(t('errors.orderNotFound'));
     } finally {
@@ -161,12 +166,15 @@ export default function StaffOrderDetail() {
     );
   if (!order) return null;
 
-  // Auto-calculate total price from item prices × quantities (skip excluded)
-  const totalPrice = order.items.reduce((sum, item) => {
-    if (excludedItems.has(item.id)) return sum;
-    const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
-    return sum + unitPrice * item.quantity;
-  }, 0);
+  // For orders with items: auto-calculate. For prescription orders (no items): use manual input.
+  const hasItems = order.items.length > 0;
+  const totalPrice = hasItems
+    ? order.items.reduce((sum, item) => {
+        if (excludedItems.has(item.id)) return sum;
+        const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
+        return sum + unitPrice * item.quantity;
+      }, 0)
+    : parseFloat(manualPrice) || 0;
 
   const isTerminal = ['completed', 'cancelled', 'rejected'].includes(order.status);
   const canEditPrice = order.status === 'created' || order.status === 'priced';
@@ -419,9 +427,20 @@ export default function StaffOrderDetail() {
                   : t('staff.priceOrder')}
               </h2>
               <label style={styles.inputLabel}>{t('staff.totalPrice')}</label>
-              <div style={styles.totalReadonly}>
-                {totalPrice > 0 ? `${totalPrice.toLocaleString()} ${order.currency}` : '—'}
-              </div>
+              {hasItems ? (
+                <div style={styles.totalReadonly}>
+                  {totalPrice > 0 ? `${totalPrice.toLocaleString()} ${order.currency}` : '—'}
+                </div>
+              ) : (
+                <input
+                  style={styles.totalInput}
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={manualPrice}
+                  onChange={(e) => setManualPrice(e.target.value)}
+                />
+              )}
               <button
                 style={styles.btnPrimary}
                 onClick={handlePrice}
@@ -745,6 +764,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 700,
     color: '#1b5e20',
+  },
+  totalInput: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1px solid #ccc',
+    fontSize: 16,
+    fontWeight: 700,
+    boxSizing: 'border-box',
   },
   totalDisplay: {
     fontSize: 22,
