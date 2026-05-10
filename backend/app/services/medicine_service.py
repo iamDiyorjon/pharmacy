@@ -164,34 +164,44 @@ class MedicineService:
         Automatically transliterates Latin→Cyrillic and Cyrillic→Latin so
         users can type in either script and find matches in both.
 
+        Only returns medicines that are stocked (``is_available=True``) at
+        at least one pharmacy — medicines without any pharmacy availability
+        are hidden from customers.
+
         Returns a tuple of (medicines, total_count).
         """
         name_filter = _build_search_filter(query)
 
-        # Count query
-        count_stmt = select(func.count(Medicine.id)).where(name_filter)
-        if pharmacy_id is not None:
-            count_stmt = count_stmt.join(Medicine.availability).where(
-                MedicineAvailability.pharmacy_id == pharmacy_id
-            )
+        avail_only = MedicineAvailability.is_available.is_(True)
+        pharmacy_clause = (
+            MedicineAvailability.pharmacy_id == pharmacy_id
+            if pharmacy_id is not None
+            else None
+        )
+
+        def _apply_avail(stmt):
+            stmt = stmt.join(Medicine.availability).where(name_filter, avail_only)
+            if pharmacy_clause is not None:
+                stmt = stmt.where(pharmacy_clause)
+            return stmt
+
+        # Count query — distinct because the join can produce duplicate medicine rows
+        count_stmt = _apply_avail(select(func.count(func.distinct(Medicine.id))))
         total = (await db.execute(count_stmt)).scalar() or 0
 
         # Data query
         stmt = (
-            select(Medicine)
-            .where(name_filter)
-            .options(
-                selectinload(Medicine.availability).selectinload(
-                    MedicineAvailability.pharmacy
+            _apply_avail(
+                select(Medicine).options(
+                    selectinload(Medicine.availability).selectinload(
+                        MedicineAvailability.pharmacy
+                    )
                 )
             )
+            .distinct()
             .limit(limit)
             .offset(offset)
         )
-        if pharmacy_id is not None:
-            stmt = stmt.join(Medicine.availability).where(
-                MedicineAvailability.pharmacy_id == pharmacy_id
-            )
 
         result = await db.execute(stmt)
         return list(result.scalars().unique().all()), total
