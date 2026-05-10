@@ -625,7 +625,7 @@ async def list_medicines(
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> MedicineListResponse:
     medicines, total = await medicine_service.list_medicines(
-        db, limit=limit, offset=offset
+        db, pharmacy_id=staff.pharmacy_id, limit=limit, offset=offset
     )
     return MedicineListResponse(
         medicines=[

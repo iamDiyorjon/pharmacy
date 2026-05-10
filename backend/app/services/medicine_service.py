@@ -311,24 +311,56 @@ class MedicineService:
     async def list_medicines(
         self,
         db: AsyncSession,
+        pharmacy_id: UUID | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[list[Medicine], int]:
-        """List all medicines with availability. Returns (medicines, total)."""
-        count_stmt = select(func.count(Medicine.id))
-        total = (await db.execute(count_stmt)).scalar() or 0
+        """List medicines with availability.
 
-        stmt = (
-            select(Medicine)
-            .options(
-                selectinload(Medicine.availability).selectinload(
-                    MedicineAvailability.pharmacy
-                )
+        When ``pharmacy_id`` is given, only returns medicines that have an
+        availability row for that pharmacy (regardless of ``is_available``,
+        so staff can still toggle stocked items off and back on).
+
+        Returns (medicines, total).
+        """
+        if pharmacy_id is not None:
+            count_stmt = (
+                select(func.count(func.distinct(Medicine.id)))
+                .join(Medicine.availability)
+                .where(MedicineAvailability.pharmacy_id == pharmacy_id)
             )
-            .order_by(Medicine.name)
-            .limit(limit)
-            .offset(offset)
-        )
+            total = (await db.execute(count_stmt)).scalar() or 0
+
+            stmt = (
+                select(Medicine)
+                .join(Medicine.availability)
+                .where(MedicineAvailability.pharmacy_id == pharmacy_id)
+                .options(
+                    selectinload(Medicine.availability).selectinload(
+                        MedicineAvailability.pharmacy
+                    )
+                )
+                .order_by(Medicine.name)
+                .distinct()
+                .limit(limit)
+                .offset(offset)
+            )
+        else:
+            count_stmt = select(func.count(Medicine.id))
+            total = (await db.execute(count_stmt)).scalar() or 0
+
+            stmt = (
+                select(Medicine)
+                .options(
+                    selectinload(Medicine.availability).selectinload(
+                        MedicineAvailability.pharmacy
+                    )
+                )
+                .order_by(Medicine.name)
+                .limit(limit)
+                .offset(offset)
+            )
+
         result = await db.execute(stmt)
         return list(result.scalars().unique().all()), total
 
