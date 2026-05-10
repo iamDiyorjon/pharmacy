@@ -9,7 +9,6 @@ from app.api import router as api_router
 from app.api.middleware import setup_middleware
 from app.bot.handlers import register_handlers
 from app.config import settings
-from app.services.drug_sync import run_drug_sync
 from app.services.scheduler import run_scheduler
 from app.services.storage_service import storage
 
@@ -38,11 +37,11 @@ async def lifespan(app: FastAPI):
 
     # Start background schedulers
     scheduler_task = asyncio.create_task(run_scheduler())
-    drug_sync_task = asyncio.create_task(run_drug_sync())
 
     # Start bot polling in debug mode
     polling_task = None
     if settings.debug:
+
         async def _poll():
             try:
                 await dp.start_polling(bot)
@@ -55,13 +54,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     scheduler_task.cancel()
-    drug_sync_task.cancel()
     try:
         await scheduler_task
-    except (asyncio.CancelledError, Exception):
-        pass
-    try:
-        await drug_sync_task
     except (asyncio.CancelledError, Exception):
         pass
 
