@@ -1,4 +1,12 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import {
+	Component,
+	ErrorInfo,
+	ReactNode,
+	Suspense,
+	lazy,
+	useEffect,
+	useState,
+} from "react";
 import {
 	Routes,
 	Route,
@@ -9,6 +17,79 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { initAuth, tokenLogin } from "./services/api";
+
+// ---------------------------------------------------------------------------
+// Error boundary — prevents white screen by surfacing render errors with a
+// reload button. Especially useful inside Telegram Mini App where there is
+// no obvious devtools to inspect a crashed page.
+// ---------------------------------------------------------------------------
+class RouteErrorBoundary extends Component<
+	{ children: ReactNode },
+	{ error: Error | null }
+> {
+	state = { error: null as Error | null };
+
+	static getDerivedStateFromError(error: Error) {
+		return { error };
+	}
+
+	componentDidCatch(error: Error, info: ErrorInfo) {
+		// Surface to console + Telegram alert if available so end users can report
+		// the actual message instead of a blank screen.
+		// eslint-disable-next-line no-console
+		console.error("Route render error:", error, info.componentStack);
+	}
+
+	render() {
+		if (!this.state.error) return this.props.children;
+		const message = this.state.error.message || String(this.state.error);
+		return (
+			<div
+				style={{
+					padding: 24,
+					display: "flex",
+					flexDirection: "column",
+					gap: 12,
+					textAlign: "center",
+					color: "var(--tg-theme-text-color, #222)",
+				}}
+			>
+				<h2 style={{ margin: 0, fontSize: 18, color: "#c62828" }}>
+					Sahifani yuklashda xatolik
+				</h2>
+				<p
+					style={{
+						margin: 0,
+						fontSize: 13,
+						opacity: 0.8,
+						wordBreak: "break-word",
+					}}
+				>
+					{message}
+				</p>
+				<button
+					style={{
+						padding: "10px 20px",
+						borderRadius: 8,
+						border: "none",
+						background: "var(--tg-theme-button-color, #2196f3)",
+						color: "var(--tg-theme-button-text-color, #fff)",
+						fontSize: 14,
+						fontWeight: 600,
+						cursor: "pointer",
+						alignSelf: "center",
+					}}
+					onClick={() => {
+						this.setState({ error: null });
+						window.location.href = "/";
+					}}
+				>
+					Bosh sahifaga qaytish
+				</button>
+			</div>
+		);
+	}
+}
 
 const StaffLayout = lazy(() => import("./components/StaffLayout"));
 
@@ -226,12 +307,17 @@ export default function App() {
 		return (
 			<Suspense fallback={<PageSpinner />}>
 				<StaffLayout>
-					<Routes>
-						<Route path="/staff" element={<StaffDashboard />} />
-						<Route path="/staff/order/:id" element={<StaffOrderDetail />} />
-						<Route path="/staff/medicines" element={<StaffMedicineCatalog />} />
-						<Route path="/staff/*" element={<StaffDashboard />} />
-					</Routes>
+					<RouteErrorBoundary>
+						<Routes>
+							<Route path="/staff" element={<StaffDashboard />} />
+							<Route path="/staff/order/:id" element={<StaffOrderDetail />} />
+							<Route
+								path="/staff/medicines"
+								element={<StaffMedicineCatalog />}
+							/>
+							<Route path="/staff/*" element={<StaffDashboard />} />
+						</Routes>
+					</RouteErrorBoundary>
 				</StaffLayout>
 			</Suspense>
 		);
@@ -242,15 +328,17 @@ export default function App() {
 		<div style={styles.appWrapper}>
 			<main style={styles.main}>
 				<Suspense fallback={<PageSpinner />}>
-					<Routes>
-						<Route path="/" element={<Home />} />
-						<Route path="/search" element={<Search />} />
-						<Route path="/order" element={<Order />} />
-						<Route path="/order/:id" element={<OrderStatus />} />
-						<Route path="/orders" element={<Orders />} />
-						<Route path="/upload" element={<Upload />} />
-						<Route path="/settings" element={<Settings />} />
-					</Routes>
+					<RouteErrorBoundary>
+						<Routes>
+							<Route path="/" element={<Home />} />
+							<Route path="/search" element={<Search />} />
+							<Route path="/order" element={<Order />} />
+							<Route path="/order/:id" element={<OrderStatus />} />
+							<Route path="/orders" element={<Orders />} />
+							<Route path="/upload" element={<Upload />} />
+							<Route path="/settings" element={<Settings />} />
+						</Routes>
+					</RouteErrorBoundary>
 				</Suspense>
 			</main>
 
