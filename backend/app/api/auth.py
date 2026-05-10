@@ -2,7 +2,7 @@
 Authentication endpoints.
 
 POST /auth/init          — Telegram Mini App initData → JWT
-POST /auth/token-login   — Magic-link JWT → fresh JWT
+POST /auth/token-login   — Refresh an existing JWT (session continuation)
 POST /auth/web/register  — Phone + password registration → JWT
 POST /auth/web/login     — Phone + password login → JWT
 
@@ -69,7 +69,7 @@ class InitRequest(BaseModel):
 class TokenLoginRequest(BaseModel):
     """Body for POST /auth/token-login."""
 
-    token: str = Field(..., description="JWT access token from magic link")
+    token: str = Field(..., description="Existing JWT access token to refresh")
 
 
 class WebRegisterRequest(BaseModel):
@@ -270,9 +270,9 @@ async def auth_init(
 @router.post(
     "/token-login",
     response_model=TokenResponse,
-    summary="Exchange a magic-link JWT for a fresh access token",
+    summary="Refresh an existing JWT for a fresh access token",
     responses={
-        status.HTTP_200_OK: {"description": "Token valid, session created"},
+        status.HTTP_200_OK: {"description": "Token valid, session refreshed"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Invalid or expired token"},
     },
 )

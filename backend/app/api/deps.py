@@ -54,7 +54,7 @@ async def get_current_user(
 
     Supported ``Authorization`` headers::
 
-        Authorization: Bearer <JWT>          — staff magic-link flow
+        Authorization: Bearer <JWT>          — web (phone+password) auth
         Authorization: tma <initDataRaw>     — Telegram Mini App flow
         Authorization: Bearer <initDataRaw>  — legacy Mini App variant
 
@@ -76,7 +76,7 @@ async def get_current_user(
 
     token_raw: str = credentials.credentials
 
-    # --- JWT path (staff magic-link tokens or web auth) ---------------------
+    # --- JWT path (phone+password web auth) ---------------------------------
     if scheme == "bearer":
         try:
             payload = jwt.decode(
@@ -90,6 +90,7 @@ async def get_current_user(
         else:
             # Try uid claim first (works for both web and Telegram JWTs)
             import uuid as _uuid
+
             uid = payload.get("uid")
             user: User | None = None
             if uid:
@@ -178,7 +179,9 @@ async def get_current_staff(
     if current_user.id:
         id_conditions.append(PharmacyStaff.user_id == current_user.id)
     if current_user.telegram_user_id:
-        id_conditions.append(PharmacyStaff.telegram_user_id == current_user.telegram_user_id)
+        id_conditions.append(
+            PharmacyStaff.telegram_user_id == current_user.telegram_user_id
+        )
 
     if not id_conditions:
         raise HTTPException(

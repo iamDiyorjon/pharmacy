@@ -183,11 +183,8 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor — prefer stored JWT, fall back to Telegram Mini App initData
 apiClient.interceptors.request.use((config) => {
-	const staffToken = localStorage.getItem("staff_token");
 	const webToken = localStorage.getItem("web_token");
-	if (staffToken) {
-		config.headers["Authorization"] = `Bearer ${staffToken}`;
-	} else if (webToken) {
+	if (webToken) {
 		config.headers["Authorization"] = `Bearer ${webToken}`;
 	} else {
 		const initDataRaw = window.Telegram?.WebApp?.initData;

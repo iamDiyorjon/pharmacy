@@ -34,7 +34,6 @@ export default function Settings() {
 
 	const handleLogout = () => {
 		localStorage.removeItem("web_token");
-		localStorage.removeItem("staff_token");
 		localStorage.removeItem("isStaff");
 		localStorage.removeItem("user_name");
 		localStorage.removeItem("user_phone");

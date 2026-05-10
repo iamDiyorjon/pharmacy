@@ -22,66 +22,14 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import select
 
-from app.api.auth import create_access_token
 from app.config import settings
 from app.db.session import async_session
 from app.models.pharmacy import Pharmacy
 from app.models.staff import PharmacyStaff
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
 admin_router = Router(name="admin")
-
-
-# ---------------------------------------------------------------------------
-# /staff  (available to all users — sends a magic link if user is staff)
-# ---------------------------------------------------------------------------
-
-
-@admin_router.message(Command("staff"))
-async def cmd_staff(message: Message) -> None:
-    """Generate a magic link for staff to access the dashboard in a browser."""
-    if message.from_user is None:
-        return
-
-    telegram_user_id = message.from_user.id
-
-    async with async_session() as session:
-        # Check if the sender is active staff
-        staff_result = await session.execute(
-            select(PharmacyStaff).where(
-                PharmacyStaff.telegram_user_id == telegram_user_id,
-                PharmacyStaff.is_active.is_(True),
-            )
-        )
-        staff: PharmacyStaff | None = staff_result.scalar_one_or_none()
-
-        if staff is None:
-            await message.answer("You are not registered as staff.")
-            return
-
-        # Look up the User record to get the internal UUID
-        user_result = await session.execute(
-            select(User).where(User.telegram_user_id == telegram_user_id)
-        )
-        user: User | None = user_result.scalar_one_or_none()
-
-        if user is None:
-            await message.answer("User account not found. Please open the Mini App first.")
-            return
-
-    # Generate JWT
-    token, _expire = create_access_token(telegram_user_id, user.id)
-    base_url = settings.telegram_webapp_url.rstrip("/")
-    magic_link = f"{base_url}/staff?token={token}"
-
-    await message.answer(
-        f"Open this link in any browser to access the staff dashboard:\n\n"
-        f"{magic_link}\n\n"
-        "This link is valid for 7 days. Do not share it with others.",
-        disable_web_page_preview=True,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +191,9 @@ async def cmd_deactivate_staff(message: Message) -> None:
     try:
         telegram_user_id = int(parts[1])
     except ValueError:
-        await message.answer(f"Invalid telegram_user_id: '{parts[1]}'. Must be an integer.")
+        await message.answer(
+            f"Invalid telegram_user_id: '{parts[1]}'. Must be an integer."
+        )
         return
 
     async with async_session() as session:
@@ -255,7 +205,9 @@ async def cmd_deactivate_staff(message: Message) -> None:
         staff: PharmacyStaff | None = result.scalar_one_or_none()
 
         if staff is None:
-            await message.answer(f"No staff member found with Telegram ID {telegram_user_id}.")
+            await message.answer(
+                f"No staff member found with Telegram ID {telegram_user_id}."
+            )
             return
 
         if not staff.is_active:

@@ -184,56 +184,8 @@ export default function App() {
 	const isTelegram = !!window.Telegram?.WebApp?.initData;
 	const isStaffRoute = location.pathname.startsWith("/staff");
 
-	// Initialize auth on mount — handle magic link token, web token, or Telegram initData
+	// Initialize auth on mount — handle web token or Telegram initData
 	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const magicToken = params.get("token");
-
-		if (magicToken) {
-			// Staff magic-link flow: exchange token, store it, clean URL
-			tokenLogin(magicToken)
-				.then((res) => {
-					localStorage.setItem("staff_token", res.access_token);
-					if (res.is_staff) {
-						setIsStaff(true);
-						localStorage.setItem("isStaff", "true");
-					}
-					window.history.replaceState({}, "", window.location.pathname);
-					setIsAuthenticated(true);
-					setAuthReady(true);
-				})
-				.catch(() => {
-					localStorage.removeItem("staff_token");
-					const stored = localStorage.getItem("isStaff");
-					if (stored === "true") setIsStaff(true);
-					setAuthReady(true);
-				});
-			return;
-		}
-
-		// If we have a stored staff token, validate it
-		const storedToken = localStorage.getItem("staff_token");
-		if (storedToken) {
-			tokenLogin(storedToken)
-				.then((res) => {
-					localStorage.setItem("staff_token", res.access_token);
-					if (res.is_staff) {
-						setIsStaff(true);
-						localStorage.setItem("isStaff", "true");
-					} else {
-						localStorage.removeItem("isStaff");
-					}
-					setIsAuthenticated(true);
-					setAuthReady(true);
-				})
-				.catch(() => {
-					localStorage.removeItem("staff_token");
-					localStorage.removeItem("isStaff");
-					setAuthReady(true);
-				});
-			return;
-		}
-
 		// Check for web token (phone+password login)
 		const webToken = localStorage.getItem("web_token");
 		if (webToken) {

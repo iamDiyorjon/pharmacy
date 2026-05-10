@@ -24,8 +24,6 @@ export interface OrderEvent {
 export type OrderEventHandler = (event: OrderEvent) => void;
 
 function getAuthToken(): string | null {
-	const staffToken = localStorage.getItem("staff_token");
-	if (staffToken) return staffToken;
 	const webToken = localStorage.getItem("web_token");
 	if (webToken) return webToken;
 	return window.Telegram?.WebApp?.initData ?? null;
