@@ -1,0 +1,55 @@
+- generic [ref=e2]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: 🏥
+        - generic [ref=e9]: Pharmacy Staff
+      - navigation [ref=e10]:
+        - link "📋 Buyurtmalar" [ref=e11] [cursor=pointer]:
+          - /url: /staff
+          - generic [ref=e12]: 📋
+          - text: Buyurtmalar
+        - link "💊 Dorilar" [ref=e13] [cursor=pointer]:
+          - /url: /staff/medicines
+          - generic [ref=e14]: 💊
+          - text: Dorilar
+    - button "🚪 Chiqish" [ref=e15] [cursor=pointer]
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - button "← Orqaga" [ref=e18] [cursor=pointer]
+      - generic [ref=e19]:
+        - heading "#ORD-20260503-OG7D" [level=1] [ref=e20]
+        - generic [ref=e21]: Rad etildi
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - heading "Mijoz ma'lumotlari" [level=2] [ref=e25]
+            - generic [ref=e26]:
+              - generic [ref=e27]: Ism
+              - generic [ref=e28]: Customer
+            - generic [ref=e29]:
+              - generic [ref=e30]: Telefon
+              - generic [ref=e31]: "+998900000002"
+            - generic [ref=e32]:
+              - generic [ref=e33]: Buyurtma
+              - generic [ref=e34]: Dori qidirish
+          - generic [ref=e35]:
+            - heading "Dorilar" [level=2] [ref=e36]
+            - table [ref=e37]:
+              - rowgroup [ref=e38]:
+                - row "Nomi Miqdor Umumiy narx" [ref=e39]:
+                  - columnheader "Nomi" [ref=e40]
+                  - columnheader "Miqdor" [ref=e41]
+                  - columnheader "Umumiy narx" [ref=e42]
+              - rowgroup [ref=e43]:
+                - row "UI-Reject-Test 1 —" [ref=e44]:
+                  - cell "UI-Reject-Test" [ref=e45]
+                  - cell "1" [ref=e46]
+                  - cell "—" [ref=e47]
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - heading "Umumiy narx" [level=2] [ref=e50]
+            - generic [ref=e51]: —
+          - generic [ref=e60]:
+            - heading "Rad etish sababi" [level=2] [ref=e61]
+            - paragraph [ref=e62]: Mahsulot mavjud emas (UI test)

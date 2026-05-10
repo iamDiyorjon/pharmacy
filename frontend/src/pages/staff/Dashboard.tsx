@@ -9,8 +9,6 @@ type TabKey = OrderStatus | 'all';
 const STATUS_TABS: { key: TabKey; labelKey: string; color: string }[] = [
   { key: 'all', labelKey: 'staff.allOrders', color: '#333' },
   { key: 'created', labelKey: 'staff.newOrders', color: '#1565c0' },
-  { key: 'priced', labelKey: 'orderStatus.status.priced', color: '#e65100' },
-  { key: 'confirmed', labelKey: 'orderStatus.status.confirmed', color: '#283593' },
   { key: 'ready', labelKey: 'orderStatus.status.ready', color: '#1b5e20' },
   { key: 'completed', labelKey: 'orderStatus.status.completed', color: '#2e7d32' },
   { key: 'rejected', labelKey: 'orderStatus.status.rejected', color: '#c62828' },
@@ -19,8 +17,6 @@ const STATUS_TABS: { key: TabKey; labelKey: string; color: string }[] = [
 
 const STATUS_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
   created: { bg: '#e3f2fd', text: '#1565c0' },
-  priced: { bg: '#fff3e0', text: '#e65100' },
-  confirmed: { bg: '#e8eaf6', text: '#283593' },
   ready: { bg: '#e8f5e9', text: '#1b5e20' },
   completed: { bg: '#e8f5e9', text: '#2e7d32' },
   rejected: { bg: '#fce4ec', text: '#c62828' },
@@ -123,7 +119,6 @@ export default function StaffDashboard() {
                 {activeTab === 'all' && <th style={styles.th}>{t('orderStatus.title', 'Holat')}</th>}
                 <th style={styles.th}>{t('order.medicines')}</th>
                 <th style={styles.thRight}>{t('staff.totalPrice')}</th>
-                <th style={styles.th}>{t('orderStatus.paymentMethod.cash', 'To\'lov')}</th>
                 <th style={styles.thRight}>{t('orders.date')}</th>
               </tr>
             </thead>
@@ -175,19 +170,6 @@ export default function StaffDashboard() {
                       {order.total_price !== null ? (
                         <span style={styles.price}>
                           {order.total_price.toLocaleString()} {order.currency}
-                        </span>
-                      ) : (
-                        <span style={styles.noPrice}>—</span>
-                      )}
-                    </td>
-                    <td style={styles.td}>
-                      {order.payment_method ? (
-                        <span style={styles.payBadge}>
-                          {order.payment_method === 'cash'
-                            ? t('staff.paymentStatus.cash')
-                            : order.payment_status === 'paid'
-                            ? t('staff.paymentStatus.paid')
-                            : t('staff.paymentStatus.pending')}
                         </span>
                       ) : (
                         <span style={styles.noPrice}>—</span>
@@ -355,11 +337,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   noPrice: {
     color: '#bbb',
-  },
-  payBadge: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: '#555',
   },
   time: {
     fontSize: 13,

@@ -52,16 +52,12 @@ export interface MedicineWithAvailability extends Medicine {
 
 export type OrderStatus =
   | 'created'
-  | 'priced'
-  | 'confirmed'
   | 'ready'
   | 'completed'
   | 'cancelled'
   | 'rejected';
 
 export type OrderType = 'medicine_search' | 'prescription';
-export type PaymentMethod = 'cash' | 'click' | 'payme';
-export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
 export interface Order {
   id: string;
@@ -74,16 +70,16 @@ export interface Order {
   currency: string;
   notes: string | null;
   rejection_reason: string | null;
-  payment_method: PaymentMethod | null;
-  payment_status: PaymentStatus | null;
+  can_cancel: boolean;
+  cancel_reason: string | null;
   created_at: string;
-  confirmed_at: string | null;
   ready_at: string | null;
   reply_image_url: string | null;
 }
 
 export interface OrderItem {
   id: string;
+  medicine_id?: string | null;
   medicine_name: string;
   quantity: number;
   unit_price: number | null;
@@ -113,14 +109,13 @@ export interface StaffOrder {
   currency: string;
   notes: string | null;
   rejection_reason: string | null;
-  payment_method: PaymentMethod | null;
-  payment_status: PaymentStatus | null;
   staff_id: string | null;
   user_first_name: string;
   user_phone: string | null;
   user_telegram_username: string | null;
   user_telegram_id: number | null;
   created_at: string;
+  ready_at: string | null;
   reply_image_url: string | null;
   items: OrderItem[];
   prescriptions: Prescription[];
@@ -140,14 +135,16 @@ export interface CreateOrderRequest {
   notes?: string;
 }
 
-export interface PriceOrderItem {
-  order_item_id: string;
-  unit_price: number;
+export interface UpdateOrderItem {
+  medicine_id?: string | null;
+  medicine_name: string;
+  quantity: number;
+  unit_price?: number | null;
 }
 
-export interface PriceOrderRequest {
-  total_price: number;
-  items?: PriceOrderItem[];
+export interface UpdateOrderRequest {
+  items: UpdateOrderItem[];
+  total_price?: number | null;
 }
 
 export interface CreateMedicineRequest {
@@ -288,16 +285,6 @@ export async function getOrder(id: string): Promise<OrderDetail> {
   return data;
 }
 
-export async function confirmOrder(
-  id: string,
-  paymentMethod: PaymentMethod,
-): Promise<Order> {
-  const { data } = await apiClient.post<Order>(`/orders/${id}/confirm`, {
-    payment_method: paymentMethod,
-  });
-  return data;
-}
-
 export async function cancelOrder(id: string): Promise<Order> {
   const { data } = await apiClient.post<Order>(`/orders/${id}/cancel`);
   return data;
@@ -334,16 +321,6 @@ export async function uploadPrescription(
   return data;
 }
 
-export async function initiatePayment(
-  orderId: string,
-): Promise<{ payment_url: string; payment_method: PaymentMethod }> {
-  const { data } = await apiClient.post<{
-    payment_url: string;
-    payment_method: PaymentMethod;
-  }>(`/orders/${orderId}/pay`);
-  return data;
-}
-
 // ---------------------------------------------------------------------------
 // Staff
 // ---------------------------------------------------------------------------
@@ -365,19 +342,19 @@ export async function getStaffOrder(id: string): Promise<StaffOrder> {
   return data;
 }
 
-export async function priceOrder(
+export async function updateStaffOrder(
   id: string,
-  payload: PriceOrderRequest,
+  payload: UpdateOrderRequest,
 ): Promise<StaffOrder> {
   const { data } = await apiClient.post<StaffOrder>(
-    `/staff/orders/${id}/price`,
+    `/staff/orders/${id}/update`,
     payload,
   );
   return data;
 }
 
-export async function readyOrder(id: string): Promise<StaffOrder> {
-  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/ready`);
+export async function confirmStaffOrder(id: string): Promise<StaffOrder> {
+  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/confirm`);
   return data;
 }
 
@@ -390,6 +367,11 @@ export async function rejectOrder(id: string, reason: string): Promise<StaffOrde
   const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/reject`, {
     reason,
   });
+  return data;
+}
+
+export async function staffCancelOrder(id: string): Promise<StaffOrder> {
+  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/cancel`);
   return data;
 }
 

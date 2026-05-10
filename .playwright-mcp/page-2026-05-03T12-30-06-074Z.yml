@@ -1,0 +1,19 @@
+- generic [ref=e3]:
+  - main [ref=e4]
+  - navigation "Bottom navigation" [ref=e5]:
+    - link "Bosh sahifa" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e7]: 🏠
+      - generic [ref=e8]: Bosh sahifa
+    - link "Qidirish" [ref=e9] [cursor=pointer]:
+      - /url: /search
+      - generic [ref=e10]: 🔍
+      - generic [ref=e11]: Qidirish
+    - link "Buyurtmalar" [ref=e12] [cursor=pointer]:
+      - /url: /orders
+      - generic [ref=e13]: 📋
+      - generic [ref=e14]: Buyurtmalar
+    - link "Sozlamalar" [ref=e15] [cursor=pointer]:
+      - /url: /settings
+      - generic [ref=e16]: ⚙️
+      - generic [ref=e17]: Sozlamalar

@@ -20,15 +20,6 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-to-a-random-secret-key"
     debug: bool = False
 
-    # Payment - Click
-    click_merchant_id: str = ""
-    click_service_id: str = ""
-    click_secret_key: str = ""
-
-    # Payment - Payme
-    payme_merchant_id: str = ""
-    payme_secret_key: str = ""
-
     # Admin
     admin_telegram_id: int = 0
 

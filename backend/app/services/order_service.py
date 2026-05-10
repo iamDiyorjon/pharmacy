@@ -6,28 +6,36 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.medicine import MedicineAvailability
 from app.models.order import (
     Order,
     OrderItem,
     OrderStatus,
     OrderType,
-    PaymentMethod,
-    PaymentStatus,
 )
 from app.models.pharmacy import Pharmacy
-from app.models.medicine import Medicine, MedicineAvailability
+
+
+class CancelLimitExceededError(ValueError):
+    """Raised when a user has reached the ready-order cancel quota."""
 
 
 class OrderService:
     """Service layer for order lifecycle operations."""
 
-    # Valid state transitions
-    CANCELLABLE_STATES = {OrderStatus.CREATED, OrderStatus.PRICED, OrderStatus.CONFIRMED}
-    REJECTABLE_STATES = {OrderStatus.CREATED, OrderStatus.PRICED, OrderStatus.CONFIRMED}
+    # Customer cancel: CREATED freely; READY only within quota.
+    CUSTOMER_CANCELLABLE_STATES = {OrderStatus.CREATED, OrderStatus.READY}
+    # Staff cancel: same states but no quota.
+    STAFF_CANCELLABLE_STATES = {OrderStatus.CREATED, OrderStatus.READY}
+    # Reject: only before staff confirms (i.e. before READY).
+    REJECTABLE_STATES = {OrderStatus.CREATED}
+
+    READY_CANCEL_LIMIT = 3
+    READY_CANCEL_WINDOW_DAYS = 30
 
     def generate_order_number(self) -> str:
         """Generate unique order number like 'ORD-20260223-XXXX'."""
@@ -44,11 +52,12 @@ class OrderService:
         items: list[dict] | None = None,
         notes: str | None = None,
     ) -> Order:
-        """Create order with items, validate pharmacy is open.
+        """Create order with items, validate pharmacy exists.
 
+        Pre-fills unit_price and total_price from the pharmacy catalog when
+        every item has a price; staff can still adjust before confirming.
         Sets expires_at to 2 hours from now.
         """
-        # Validate pharmacy exists
         stmt = select(Pharmacy).where(Pharmacy.id == pharmacy_id)
         result = await db.execute(stmt)
         pharmacy = result.scalar_one_or_none()
@@ -69,7 +78,6 @@ class OrderService:
         await db.flush()
 
         if items:
-            # Collect medicine_ids to look up catalog prices in one query
             medicine_ids = [
                 i["medicine_id"] for i in items if i.get("medicine_id")
             ]
@@ -79,7 +87,7 @@ class OrderService:
                     and_(
                         MedicineAvailability.pharmacy_id == pharmacy_id,
                         MedicineAvailability.medicine_id.in_(medicine_ids),
-                        MedicineAvailability.is_available == True,
+                        MedicineAvailability.is_available == True,  # noqa: E712
                         MedicineAvailability.price.isnot(None),
                     )
                 )
@@ -92,7 +100,7 @@ class OrderService:
 
             for item_data in items:
                 med_id = item_data.get("medicine_id")
-                catalog_price = price_map.get(med_id) if med_id else None
+                catalog_price = price_map.get(str(med_id)) if med_id else None
                 qty = item_data.get("quantity", 1)
 
                 order_item = OrderItem(
@@ -109,15 +117,10 @@ class OrderService:
                 else:
                     all_priced = False
 
-            # Auto-set to PRICED if all items have catalog prices
             if all_priced and items:
                 order.total_price = total
-                order.status = OrderStatus.PRICED
-                order.priced_at = now
 
         await db.commit()
-
-        # Reload with relationships for the response
         return await self.get_order(db, order.id)  # type: ignore[return-value]
 
     async def get_order(
@@ -170,31 +173,41 @@ class OrderService:
         result = await db.execute(stmt)
         return list(result.scalars().unique().all()), total
 
-    async def confirm_order(
+    # ── Cancel quota ─────────────────────────────────────────────────
+
+    async def count_recent_ready_cancellations(
         self,
         db: AsyncSession,
-        order_id: UUID,
         user_id: UUID,
-        payment_method: str = "cash",
-    ) -> Order:
-        """Transition PRICED -> CONFIRMED. Set payment_method and payment_status."""
-        order = await self._get_order_or_raise(db, order_id)
-
-        if order.user_id != user_id:
-            raise ValueError("Order does not belong to this user")
-        if order.status != OrderStatus.PRICED:
-            raise ValueError(
-                f"Cannot confirm order in '{order.status.value}' state. "
-                f"Order must be in 'priced' state to confirm."
+    ) -> int:
+        """Count cancellations of READY orders by this user in the rolling window."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self.READY_CANCEL_WINDOW_DAYS)
+        stmt = select(func.count(Order.id)).where(
+            and_(
+                Order.user_id == user_id,
+                Order.status == OrderStatus.CANCELLED,
+                Order.ready_at.is_not(None),
+                Order.cancelled_at.is_not(None),
+                Order.cancelled_at >= cutoff,
             )
+        )
+        result = await db.execute(stmt)
+        return result.scalar() or 0
 
-        order.status = OrderStatus.CONFIRMED
-        order.payment_method = PaymentMethod(payment_method)
-        order.payment_status = PaymentStatus.PENDING
-        order.confirmed_at = datetime.now(timezone.utc)
-
-        await db.commit()
-        return await self.get_order(db, order_id)  # type: ignore[return-value]
+    async def get_cancel_availability(
+        self,
+        db: AsyncSession,
+        order: Order,
+    ) -> tuple[bool, str | None]:
+        """Whether the customer can cancel this order, with i18n reason key when not."""
+        if order.status == OrderStatus.CREATED:
+            return True, None
+        if order.status == OrderStatus.READY:
+            count = await self.count_recent_ready_cancellations(db, order.user_id)
+            if count >= self.READY_CANCEL_LIMIT:
+                return False, "ready_cancel_limit_exceeded"
+            return True, None
+        return False, "wrong_state"
 
     async def cancel_order(
         self,
@@ -202,15 +215,43 @@ class OrderService:
         order_id: UUID,
         user_id: UUID,
     ) -> Order:
-        """Cancel from any active state (CREATED, PRICED, CONFIRMED). Set cancelled_at."""
+        """Customer cancel. Free from CREATED; from READY only within quota."""
         order = await self._get_order_or_raise(db, order_id)
 
         if order.user_id != user_id:
             raise ValueError("Order does not belong to this user")
-        if order.status not in self.CANCELLABLE_STATES:
+        if order.status not in self.CUSTOMER_CANCELLABLE_STATES:
             raise ValueError(
-                f"Cannot cancel order in '{order.status.value}' state. "
-                f"Order can only be cancelled from: {', '.join(s.value for s in self.CANCELLABLE_STATES)}."
+                f"Cannot cancel order in '{order.status.value}' state."
+            )
+
+        if order.status == OrderStatus.READY:
+            count = await self.count_recent_ready_cancellations(db, user_id)
+            if count >= self.READY_CANCEL_LIMIT:
+                raise CancelLimitExceededError(
+                    f"Cancel limit reached: {count}/{self.READY_CANCEL_LIMIT} "
+                    f"in the last {self.READY_CANCEL_WINDOW_DAYS} days"
+                )
+
+        order.status = OrderStatus.CANCELLED
+        order.cancelled_at = datetime.now(timezone.utc)
+
+        await db.commit()
+        return await self.get_order(db, order_id)  # type: ignore[return-value]
+
+    async def staff_cancel_order(
+        self,
+        db: AsyncSession,
+        order_id: UUID,
+        staff_id: UUID,
+    ) -> Order:
+        """Staff cancel from CREATED or READY. No quota."""
+        order = await self._get_order_or_raise(db, order_id)
+        self._validate_staff(order, staff_id)
+
+        if order.status not in self.STAFF_CANCELLABLE_STATES:
+            raise ValueError(
+                f"Cannot cancel order in '{order.status.value}' state."
             )
 
         order.status = OrderStatus.CANCELLED
@@ -218,6 +259,8 @@ class OrderService:
 
         await db.commit()
         return await self.get_order(db, order_id)  # type: ignore[return-value]
+
+    # ── Pharmacy queue ───────────────────────────────────────────────
 
     async def list_pharmacy_orders(
         self,
@@ -269,59 +312,78 @@ class OrderService:
         await db.commit()
         return await self.get_order(db, order_id)  # type: ignore[return-value]
 
-    async def price_order(
+    # ── Staff edits ──────────────────────────────────────────────────
+
+    async def update_order_items(
         self,
         db: AsyncSession,
         order_id: UUID,
         staff_id: UUID,
-        total_price: Decimal,
-        item_prices: dict[UUID, Decimal] | None = None,
+        items: list[dict],
+        total_price: Decimal | None = None,
     ) -> Order:
-        """CREATED -> PRICED. Set total_price, priced_at."""
+        """Replace items + total_price on a CREATED order. No state change.
+
+        items: list of {medicine_id?, medicine_name, quantity, unit_price?}
+        """
         order = await self._get_order_or_raise(db, order_id)
         self._validate_staff(order, staff_id)
 
-        if order.status not in (OrderStatus.CREATED, OrderStatus.PRICED):
+        if order.status != OrderStatus.CREATED:
             raise ValueError(
-                f"Cannot price order in '{order.status.value}' state. "
-                f"Order must be in 'created' or 'priced' state to price."
+                f"Cannot edit order in '{order.status.value}' state. "
+                f"Only 'created' orders can be edited."
             )
 
-        order.status = OrderStatus.PRICED
-        order.total_price = total_price
-        order.priced_at = datetime.now(timezone.utc)
+        await db.execute(delete(OrderItem).where(OrderItem.order_id == order_id))
 
-        if item_prices:
-            # Load items to update individual unit prices
-            stmt = select(OrderItem).where(OrderItem.order_id == order_id)
-            result = await db.execute(stmt)
-            items_by_id = {item.id: item for item in result.scalars().all()}
+        for item_data in items:
+            unit_price = item_data.get("unit_price")
+            order_item = OrderItem(
+                order_id=order_id,
+                medicine_id=item_data.get("medicine_id"),
+                medicine_name=item_data.get("medicine_name", ""),
+                quantity=item_data.get("quantity", 1),
+                unit_price=Decimal(str(unit_price)) if unit_price is not None else None,
+            )
+            db.add(order_item)
 
-            for item_id, unit_price in item_prices.items():
-                if item_id in items_by_id:
-                    items_by_id[item_id].unit_price = unit_price
+        if total_price is not None:
+            order.total_price = total_price
+
+        # Claim the order if it isn't already claimed
+        if order.staff_id is None:
+            order.staff_id = staff_id
 
         await db.commit()
+        # Session uses expire_on_commit=False, so items loaded earlier aren't
+        # invalidated after the DELETE/INSERT above. Drop the cached items so
+        # the response reflects the rows we just inserted.
+        db.expire_all()
         return await self.get_order(db, order_id)  # type: ignore[return-value]
 
-    async def mark_ready(
+    async def confirm_to_ready(
         self,
         db: AsyncSession,
         order_id: UUID,
         staff_id: UUID,
     ) -> Order:
-        """CONFIRMED -> READY. Set ready_at."""
+        """CREATED -> READY. Sets ready_at."""
         order = await self._get_order_or_raise(db, order_id)
         self._validate_staff(order, staff_id)
 
-        if order.status != OrderStatus.CONFIRMED:
+        if order.status != OrderStatus.CREATED:
             raise ValueError(
-                f"Cannot mark order as ready in '{order.status.value}' state. "
-                f"Order must be in 'confirmed' state."
+                f"Cannot confirm order in '{order.status.value}' state. "
+                f"Order must be in 'created' state."
             )
+        if order.total_price is None or order.total_price <= 0:
+            raise ValueError("Cannot confirm order without a total price.")
 
         order.status = OrderStatus.READY
         order.ready_at = datetime.now(timezone.utc)
+        if order.staff_id is None:
+            order.staff_id = staff_id
 
         await db.commit()
         return await self.get_order(db, order_id)  # type: ignore[return-value]
@@ -355,14 +417,13 @@ class OrderService:
         staff_id: UUID,
         reason: str,
     ) -> Order:
-        """Reject with reason from any active state."""
+        """Reject from CREATED with reason."""
         order = await self._get_order_or_raise(db, order_id)
         self._validate_staff(order, staff_id)
 
         if order.status not in self.REJECTABLE_STATES:
             raise ValueError(
-                f"Cannot reject order in '{order.status.value}' state. "
-                f"Order can only be rejected from: {', '.join(s.value for s in self.REJECTABLE_STATES)}."
+                f"Cannot reject order in '{order.status.value}' state."
             )
 
         order.status = OrderStatus.REJECTED
@@ -387,7 +448,6 @@ class OrderService:
         if original.status != OrderStatus.COMPLETED:
             raise ValueError("Can only reorder from a completed order")
 
-        # Build items list from original order items
         items = []
         for item in original.items:
             items.append(
@@ -421,7 +481,7 @@ class OrderService:
 
     @staticmethod
     def _validate_staff(order: Order, staff_id: UUID) -> None:
-        """Ensure the staff member is assigned to this order."""
+        """Ensure the staff member is assigned to this order (if claimed)."""
         if order.staff_id is not None and order.staff_id != staff_id:
             raise ValueError("This order is assigned to a different staff member")
 

@@ -4,13 +4,11 @@ import { useTranslation } from 'react-i18next';
 
 import { getOrders, reorder, type Order, type OrderStatus } from '../services/api';
 
-const ACTIVE_STATUSES: OrderStatus[] = ['created', 'priced', 'confirmed', 'ready'];
+const ACTIVE_STATUSES: OrderStatus[] = ['created', 'ready'];
 const HISTORY_STATUSES: OrderStatus[] = ['completed', 'cancelled', 'rejected'];
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   created: { bg: '#e3f2fd', text: '#1565c0', dot: '#1976d2' },
-  priced: { bg: '#fff3e0', text: '#e65100', dot: '#f57c00' },
-  confirmed: { bg: '#e8eaf6', text: '#283593', dot: '#3949ab' },
   ready: { bg: '#e8f5e9', text: '#1b5e20', dot: '#2e7d32' },
   completed: { bg: '#f1f8e9', text: '#33691e', dot: '#558b2f' },
   cancelled: { bg: '#fce4ec', text: '#880e4f', dot: '#ad1457' },

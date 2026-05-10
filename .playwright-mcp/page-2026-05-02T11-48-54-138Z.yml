@@ -1,0 +1,72 @@
+- generic [ref=e2]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: 🏥
+        - generic [ref=e9]: Pharmacy Staff
+      - navigation [ref=e10]:
+        - link "📋 Buyurtmalar" [ref=e11] [cursor=pointer]:
+          - /url: /staff
+          - generic [ref=e12]: 📋
+          - text: Buyurtmalar
+        - link "💊 Dorilar" [ref=e13] [cursor=pointer]:
+          - /url: /staff/medicines
+          - generic [ref=e14]: 💊
+          - text: Dorilar
+    - button "🚪 Chiqish" [ref=e15] [cursor=pointer]
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - button "← Orqaga" [ref=e18] [cursor=pointer]
+      - generic [ref=e19]:
+        - heading "#ORD-20260502-T6QC" [level=1] [ref=e20]
+        - generic [ref=e21]: Yangi
+        - generic [ref=e62]: Tahrirlash rejimi
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - heading "Mijoz ma'lumotlari" [level=2] [ref=e25]
+            - generic [ref=e26]:
+              - generic [ref=e27]: Ism
+              - generic [ref=e28]: Customer
+            - generic [ref=e29]:
+              - generic [ref=e30]: Telefon
+              - generic [ref=e31]: "+998900000002"
+            - generic [ref=e32]:
+              - generic [ref=e33]: Buyurtma
+              - generic [ref=e34]: Dori qidirish
+          - generic [ref=e63]:
+            - heading "Dorilar" [level=2] [ref=e64]
+            - table [ref=e65]:
+              - rowgroup [ref=e66]:
+                - row "Nomi Miqdor Umumiy narx" [ref=e67]:
+                  - columnheader "Nomi" [ref=e68]
+                  - columnheader "Miqdor" [ref=e69]
+                  - columnheader "Umumiy narx" [ref=e70]
+                  - columnheader [ref=e71]
+              - rowgroup [ref=e72]:
+                - row "Aspirin 500mg 3 ✕" [ref=e73]:
+                  - cell "Aspirin 500mg" [ref=e74]:
+                    - textbox "Nomi" [ref=e75]: Aspirin 500mg
+                  - cell "3" [ref=e76]:
+                    - spinbutton [ref=e77]: "3"
+                  - cell [ref=e78]:
+                    - spinbutton [ref=e79]
+                  - cell "✕" [ref=e80]:
+                    - button "✕" [ref=e81] [cursor=pointer]
+                - row "Insulin 1 ✕" [ref=e82]:
+                  - cell "Insulin" [ref=e83]:
+                    - textbox "Nomi" [ref=e84]: Insulin
+                  - cell "1" [ref=e85]:
+                    - spinbutton [ref=e86]: "1"
+                  - cell [ref=e87]:
+                    - spinbutton [ref=e88]
+                  - cell "✕" [ref=e89]:
+                    - button "✕" [ref=e90] [cursor=pointer]
+            - button "+ Dori qo'shish" [ref=e91] [cursor=pointer]
+        - generic [ref=e52]:
+          - generic [ref=e53]:
+            - heading "Umumiy narx" [level=2] [ref=e54]
+            - spinbutton [ref=e92]
+          - generic [ref=e93]:
+            - button "Saqlash" [ref=e94] [cursor=pointer]
+            - button "Bekor qilish" [ref=e95] [cursor=pointer]

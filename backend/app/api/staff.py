@@ -1,13 +1,15 @@
-"""
-T051-T056 - Staff order management and medicine catalog endpoints.
+"""Staff order management and medicine catalog endpoints.
 
-GET  /staff/orders              — list pharmacy orders
-POST /staff/orders/{id}/price   — price an order
-POST /staff/orders/{id}/ready   — mark order ready
-POST /staff/orders/{id}/complete — complete order
-POST /staff/orders/{id}/reject  — reject order
-GET  /staff/medicines           — list medicines
-POST /staff/medicines           — add medicine
+GET  /staff/orders                 — list pharmacy orders
+GET  /staff/orders/{id}            — get order detail
+POST /staff/orders/{id}/update     — save items + total (no state change)
+POST /staff/orders/{id}/confirm    — confirm and mark ready (notifies customer)
+POST /staff/orders/{id}/complete   — complete (customer picked up)
+POST /staff/orders/{id}/reject     — reject before confirming
+POST /staff/orders/{id}/cancel     — cancel a CREATED or READY order
+POST /staff/orders/{id}/reply-image — upload prescription reply image
+GET  /staff/medicines              — list medicines
+POST /staff/medicines              — add medicine
 POST /staff/medicines/import-excel — import medicines from Excel
 PUT  /staff/medicines/{id}/availability — toggle availability
 """
@@ -20,7 +22,6 @@ from decimal import Decimal
 
 from aiogram import Bot
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,14 +47,16 @@ medicine_service = MedicineService()
 # ---------------------------------------------------------------------------
 
 
-class PriceItemRequest(BaseModel):
-    order_item_id: str
-    unit_price: float
+class UpdateOrderItemRequest(BaseModel):
+    medicine_id: str | None = None
+    medicine_name: str = Field(min_length=1, max_length=300)
+    quantity: int = Field(ge=1, default=1)
+    unit_price: float | None = None
 
 
-class PriceOrderRequest(BaseModel):
-    total_price: float = Field(gt=0)
-    items: list[PriceItemRequest] | None = None
+class UpdateOrderRequest(BaseModel):
+    items: list[UpdateOrderItemRequest]
+    total_price: float | None = Field(default=None, ge=0)
 
 
 class RejectOrderRequest(BaseModel):
@@ -75,6 +78,7 @@ class UpdateAvailabilityRequest(BaseModel):
 
 class OrderItemResponse(BaseModel):
     id: str
+    medicine_id: str | None = None
     medicine_name: str
     quantity: int
     unit_price: float | None
@@ -99,14 +103,13 @@ class StaffOrderResponse(BaseModel):
     currency: str
     notes: str | None
     rejection_reason: str | None
-    payment_method: str | None
-    payment_status: str | None
     staff_id: str | None
     user_first_name: str
     user_phone: str | None
     user_telegram_username: str | None = None
     user_telegram_id: int | None = None
     created_at: str
+    ready_at: str | None
     reply_image_url: str | None = None
     items: list[OrderItemResponse] = []
     prescriptions: list[PrescriptionResponse] = []
@@ -152,24 +155,26 @@ def _get_bot(request: Request) -> Bot:
     return request.app.state.bot
 
 
-def _build_priced_message(order, lang: str) -> str:
-    """Build a detailed pricing notification with item breakdown."""
-    price_str = f"{float(order.total_price):,.0f} {order.currency}" if order.total_price else ""
+def _build_ready_message(order, lang: str) -> str:
+    """Detailed customer notification: order is ready, with items + total."""
+    price_str = (
+        f"{float(order.total_price):,.0f} {order.currency}"
+        if order.total_price
+        else ""
+    )
 
     available_items = []
     removed_items = []
-    for item in (order.items or []):
+    for item in order.items or []:
         if item.unit_price is not None and float(item.unit_price) > 0:
             line_total = float(item.unit_price) * item.quantity
             available_items.append((item.medicine_name, item.quantity, line_total))
         else:
             removed_items.append(item.medicine_name)
 
-    # Build item lines
     items_text = ""
-    if available_items:
-        for name, qty, total in available_items:
-            items_text += f"  • {name} x{qty} — {total:,.0f}\n"
+    for name, qty, total in available_items:
+        items_text += f"  • {name} x{qty} — {total:,.0f}\n"
 
     removed_text = ""
     if removed_items:
@@ -182,50 +187,49 @@ def _build_priced_message(order, lang: str) -> str:
 
     templates = {
         "uz": (
-            f"💊 Buyurtma #{order.order_number} narxlandi!\n\n"
+            f"✅ Buyurtma #{order.order_number} tayyor!\n\n"
             f"{items_text}"
             f"{removed_text}\n"
             f"\n💰 Jami: {price_str}\n"
-            f"Tasdiqlash uchun ilovaga kiring."
+            f"Dorixonaga keling va olib keting."
         ),
         "ru": (
-            f"💊 Заказ #{order.order_number} оценён!\n\n"
+            f"✅ Заказ #{order.order_number} готов!\n\n"
             f"{items_text}"
             f"{removed_text}\n"
             f"\n💰 Итого: {price_str}\n"
-            f"Откройте приложение для подтверждения."
+            f"Подойдите в аптеку и заберите."
         ),
         "en": (
-            f"💊 Order #{order.order_number} priced!\n\n"
+            f"✅ Order #{order.order_number} is ready!\n\n"
             f"{items_text}"
             f"{removed_text}\n"
             f"\n💰 Total: {price_str}\n"
-            f"Open the app to confirm."
+            f"Come to the pharmacy to pick up."
         ),
     }
     return templates.get(lang, templates["uz"])
 
 
-async def _notify_order_status(bot: Bot, order, status_key: str, extra: str = "") -> None:
-    """Fire-and-forget notification to customer about order status change."""
+async def _notify_order_status(
+    bot: Bot,
+    order,
+    status_key: str,
+    extra: str = "",
+) -> None:
+    """Fire-and-forget Telegram notification to the customer."""
     try:
         if not order.user or not order.user.telegram_user_id:
             return
         lang = order.user.language_code or "uz"
-        price_str = f"{float(order.total_price):,.0f} {order.currency}" if order.total_price else ""
 
-        # Priced notifications use the detailed builder
-        if status_key == "priced":
-            text = _build_priced_message(order, lang)
-            await notify_customer(bot, order.user.telegram_user_id, text)
+        if status_key == "ready":
+            await notify_customer(
+                bot, order.user.telegram_user_id, _build_ready_message(order, lang)
+            )
             return
 
         messages = {
-            "ready": {
-                "uz": f"✅ Buyurtma #{order.order_number} tayyor! Olib ketishingiz mumkin.",
-                "ru": f"✅ Заказ #{order.order_number} готов! Можете забрать.",
-                "en": f"✅ Order #{order.order_number} is ready for pickup!",
-            },
             "completed": {
                 "uz": f"🎉 Buyurtma #{order.order_number} yakunlandi. Rahmat!",
                 "ru": f"🎉 Заказ #{order.order_number} завершён. Спасибо!",
@@ -235,6 +239,20 @@ async def _notify_order_status(bot: Bot, order, status_key: str, extra: str = ""
                 "uz": f"❌ Buyurtma #{order.order_number} rad etildi.\nSabab: {extra}",
                 "ru": f"❌ Заказ #{order.order_number} отклонён.\nПричина: {extra}",
                 "en": f"❌ Order #{order.order_number} rejected.\nReason: {extra}",
+            },
+            "cancelled_by_staff": {
+                "uz": (
+                    f"⚠️ Buyurtma #{order.order_number} dorixona tomonidan "
+                    f"bekor qilindi. Iltimos, dorixonaga murojaat qiling."
+                ),
+                "ru": (
+                    f"⚠️ Заказ #{order.order_number} отменён аптекой. "
+                    f"Пожалуйста, свяжитесь с аптекой."
+                ),
+                "en": (
+                    f"⚠️ Order #{order.order_number} was cancelled by the pharmacy. "
+                    f"Please contact them."
+                ),
             },
         }
         status_msgs = messages.get(status_key)
@@ -259,18 +277,18 @@ def _staff_order_response(order) -> StaffOrderResponse:
         currency=order.currency,
         notes=order.notes,
         rejection_reason=order.rejection_reason,
-        payment_method=order.payment_method.value if order.payment_method else None,
-        payment_status=order.payment_status.value if order.payment_status else None,
         staff_id=str(order.staff_id) if order.staff_id else None,
         user_first_name=order.user.first_name if order.user else "Unknown",
         user_phone=order.user.phone if order.user else None,
         user_telegram_username=order.user.telegram_username if order.user else None,
         user_telegram_id=order.user.telegram_user_id if order.user else None,
         created_at=order.created_at.isoformat() if order.created_at else "",
+        ready_at=order.ready_at.isoformat() if order.ready_at else None,
         reply_image_url=reply_image_url,
         items=[
             OrderItemResponse(
                 id=str(item.id),
+                medicine_id=str(item.medicine_id) if item.medicine_id else None,
                 medicine_name=item.medicine_name,
                 quantity=item.quantity,
                 unit_price=float(item.unit_price) if item.unit_price else None,
@@ -346,62 +364,65 @@ async def get_staff_order(
 
 
 # ---------------------------------------------------------------------------
-# POST /staff/orders/{order_id}/price
+# POST /staff/orders/{order_id}/update
 # ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/orders/{order_id}/price",
+    "/orders/{order_id}/update",
     response_model=StaffOrderResponse,
-    summary="Price an order (claims it)",
+    summary="Save items and total price (no state change)",
 )
-async def price_order(
+async def update_order(
     order_id: uuid.UUID,
-    body: PriceOrderRequest,
-    request: Request,
+    body: UpdateOrderRequest,
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
-    item_prices = None
-    if body.items:
-        item_prices = {
-            uuid.UUID(i.order_item_id): Decimal(str(i.unit_price))
-            for i in body.items
+    items = [
+        {
+            "medicine_id": i.medicine_id,
+            "medicine_name": i.medicine_name,
+            "quantity": i.quantity,
+            "unit_price": i.unit_price,
         }
+        for i in body.items
+    ]
 
     try:
-        order = await order_service.price_order(
+        order = await order_service.update_order_items(
             db,
             order_id=order_id,
             staff_id=staff.id,
-            total_price=Decimal(str(body.total_price)),
-            item_prices=item_prices,
+            items=items,
+            total_price=Decimal(str(body.total_price)) if body.total_price is not None else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    await _notify_order_status(_get_bot(request), order, "priced")
     return _staff_order_response(order)
 
 
 # ---------------------------------------------------------------------------
-# POST /staff/orders/{order_id}/ready
+# POST /staff/orders/{order_id}/confirm
 # ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/orders/{order_id}/ready",
+    "/orders/{order_id}/confirm",
     response_model=StaffOrderResponse,
-    summary="Mark order ready for pickup",
+    summary="Confirm order and mark ready for pickup",
 )
-async def mark_ready(
+async def confirm_order(
     order_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
     try:
-        order = await order_service.mark_ready(db, order_id=order_id, staff_id=staff.id)
+        order = await order_service.confirm_to_ready(
+            db, order_id=order_id, staff_id=staff.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await _notify_order_status(_get_bot(request), order, "ready")
@@ -440,7 +461,7 @@ async def mark_complete(
 @router.post(
     "/orders/{order_id}/reject",
     response_model=StaffOrderResponse,
-    summary="Reject an order with reason",
+    summary="Reject an order before confirming, with reason",
 )
 async def reject_order(
     order_id: uuid.UUID,
@@ -456,6 +477,32 @@ async def reject_order(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await _notify_order_status(_get_bot(request), order, "rejected", extra=body.reason)
+    return _staff_order_response(order)
+
+
+# ---------------------------------------------------------------------------
+# POST /staff/orders/{order_id}/cancel
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/orders/{order_id}/cancel",
+    response_model=StaffOrderResponse,
+    summary="Cancel a CREATED or READY order (no quota for staff)",
+)
+async def staff_cancel(
+    order_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    staff: PharmacyStaff = Depends(get_current_staff),
+) -> StaffOrderResponse:
+    try:
+        order = await order_service.staff_cancel_order(
+            db, order_id=order_id, staff_id=staff.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await _notify_order_status(_get_bot(request), order, "cancelled_by_staff")
     return _staff_order_response(order)
 
 
@@ -478,12 +525,10 @@ async def upload_reply_image(
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
-    # Verify order belongs to staff's pharmacy
     order = await order_service.get_order(db, order_id)
     if order is None or order.pharmacy_id != staff.pharmacy_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
-    # Only allow for prescription-type orders
     order_type = order.order_type.value if hasattr(order.order_type, "value") else order.order_type
     if order_type != "prescription":
         raise HTTPException(
@@ -491,15 +536,13 @@ async def upload_reply_image(
             detail="Reply image can only be uploaded for prescription orders",
         )
 
-    # Only allow upload for created / priced orders
     order_status = order.status.value if hasattr(order.status, "value") else order.status
-    if order_status not in ("created", "priced"):
+    if order_status != "created":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Reply image can only be uploaded for created or priced orders",
+            detail="Reply image can only be uploaded for created orders",
         )
 
-    # Validate content type
     content_type = file.content_type or ""
     if content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
@@ -507,7 +550,6 @@ async def upload_reply_image(
             detail=f"Invalid file type '{content_type}'. Only JPEG and PNG are allowed.",
         )
 
-    # Read and validate size
     file_data = await file.read()
     if len(file_data) > MAX_IMAGE_SIZE:
         raise HTTPException(
@@ -515,25 +557,20 @@ async def upload_reply_image(
             detail=f"File too large. Maximum size is {MAX_IMAGE_SIZE // (1024 * 1024)} MB.",
         )
 
-    # Determine extension
     ext = "jpg" if content_type == "image/jpeg" else "png"
     file_key = f"reply-images/{order_id}/{uuid.uuid4()}.{ext}"
 
-    # Delete previous reply image if exists
     if order.reply_image_key:
         try:
             await storage.delete_file(order.reply_image_key)
         except Exception:
             logger.warning("Failed to delete old reply image key='%s'", order.reply_image_key)
 
-    # Upload to MinIO
     await storage.upload_file(file_data, file_key, content_type)
 
-    # Update order record
     order.reply_image_key = file_key
     await db.commit()
 
-    # Re-fetch with all relationships loaded (including user)
     order = await order_service.get_order(db, order_id)
     return _staff_order_response(order)
 
@@ -651,7 +688,6 @@ async def import_medicines_excel(
 
     from app.services.drug_import import import_drugs_from_excel
 
-    # Validate file extension
     filename = file.filename or ""
     if not filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(
@@ -659,7 +695,6 @@ async def import_medicines_excel(
             detail="Only .xlsx or .xls files are allowed.",
         )
 
-    # Read and validate size
     file_data = await file.read()
     if len(file_data) > MAX_EXCEL_SIZE:
         raise HTTPException(
@@ -667,7 +702,6 @@ async def import_medicines_excel(
             detail=f"File too large. Maximum size is {MAX_EXCEL_SIZE // (1024 * 1024)} MB.",
         )
 
-    # Write to a temp file and run import
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=True) as tmp:
         tmp.write(file_data)
         tmp.flush()
@@ -693,6 +727,7 @@ async def import_medicines_excel(
 @router.put(
     "/medicines/{medicine_id}/availability",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Toggle medicine availability at staff's pharmacy",
 )
 async def update_availability(

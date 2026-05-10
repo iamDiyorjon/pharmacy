@@ -1,0 +1,61 @@
+- generic [ref=e5]:
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - heading "Buyurtma holati" [level=1] [ref=e10]
+          - generic [ref=e11]: "#ORD-20260502-RHVQ"
+        - generic [ref=e12]: Olib ketishga tayyor
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e17]: ✓
+          - generic [ref=e18]: Yaratildi
+        - generic [ref=e22]: Tayyor
+        - generic [ref=e26]: Bajarildi
+      - generic [ref=e27]:
+        - generic [ref=e28]: ✅
+        - paragraph [ref=e29]: Buyurtmangiz tayyor! Olib keting!
+      - generic [ref=e31]:
+        - generic [ref=e32]: 🏥
+        - generic [ref=e33]:
+          - generic [ref=e34]: Dorixona
+          - generic [ref=e35]: Test Pharmacy
+      - generic [ref=e37]:
+        - generic [ref=e38]: 💰
+        - generic [ref=e39]:
+          - generic [ref=e40]: Umumiy narx
+          - generic [ref=e41]: 7,000 UZS
+      - generic [ref=e42]:
+        - heading "Dorilar" [level=3] [ref=e43]
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - generic [ref=e46]: Bandaid
+            - generic [ref=e47]: ×2
+          - generic [ref=e48]: 3,500 UZS
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]: Sana
+          - generic [ref=e52]: 5/2/2026, 4:53:08 PM
+        - generic [ref=e53]:
+          - generic [ref=e54]: Tayyor
+          - generic [ref=e55]: 5/2/2026, 4:53:20 PM
+      - generic [ref=e56]:
+        - button "Buyurtmani bekor qilish" [disabled] [ref=e57]
+        - paragraph [ref=e58]: Bekor qilish limiti tugagan. Iltimos, dorixonaga murojaat qiling.
+  - navigation "Bottom navigation" [ref=e59]:
+    - link "Bosh sahifa" [ref=e60] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e61]: 🏠
+      - generic [ref=e62]: Bosh sahifa
+    - link "Qidirish" [ref=e63] [cursor=pointer]:
+      - /url: /search
+      - generic [ref=e64]: 🔍
+      - generic [ref=e65]: Qidirish
+    - link "Buyurtmalar" [ref=e66] [cursor=pointer]:
+      - /url: /orders
+      - generic [ref=e67]: 📋
+      - generic [ref=e68]: Buyurtmalar
+    - link "Sozlamalar" [ref=e69] [cursor=pointer]:
+      - /url: /settings
+      - generic [ref=e70]: ⚙️
+      - generic [ref=e71]: Sozlamalar

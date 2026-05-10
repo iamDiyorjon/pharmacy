@@ -67,41 +67,23 @@
     "orderNumber": "Buyurtma raqami",
     "status": {
       "created": "Yangi",
-      "priced": "Narx belgilandi",
-      "confirmed": "Tasdiqlandi",
       "ready": "Olib ketishga tayyor",
       "completed": "Bajarildi",
       "cancelled": "Bekor qilindi",
       "rejected": "Rad etildi"
     },
     "totalPrice": "Umumiy narx",
-    "paymentMethod": {
-      "cash": "Naqd pul",
-      "click": "Click",
-      "payme": "Payme"
-    },
-    "paymentStatus": {
-      "pending": "Kutilmoqda",
-      "paid": "To'landi",
-      "failed": "Muvaffaqiyatsiz"
-    },
-    "confirmPrice": "Narxni tasdiqlash",
     "cancelOrder": "Buyurtmani bekor qilish",
+    "cancelLimitReached": "Bekor qilish limiti tugagan. Iltimos, dorixonaga murojaat qiling.",
     "reorder": "Qayta buyurtma",
     "pickupMessage": "Dorixonaga keling va buyurtmangizni olib keting!",
     "rejectionReason": "Rad etish sababi",
-    "selectPayment": "To'lov usulini tanlang",
-    "payAtPickup": "Olib kelganda to'lash",
-    "paymentLabel": "To'lov usuli",
     "step": {
       "created": "Yaratildi",
-      "priced": "Narx",
-      "confirmed": "To'lov",
       "ready": "Tayyor",
-      "completed": "Tayyor"
+      "completed": "Bajarildi"
     },
-    "waitingPharmacy": "Dorixona narx belgilashini kutmoqdamiz",
-    "waitingReady": "Dorixona buyurtmangizni tayyorlamoqda",
+    "waitingPharmacy": "Dorixona buyurtmangizni tayyorlamoqda",
     "waitingPickup": "Buyurtmangiz tayyor! Olib keting!"
   },
   "orders": {
@@ -165,11 +147,19 @@
     "medicines": "Dorilar",
     "allOrders": "Barchasi",
     "newOrders": "Yangi buyurtmalar",
-    "queue": "Navbat",
-    "priceOrder": "Narx belgilash",
+    "queue": "Amallar",
     "totalPrice": "Umumiy narx",
-    "itemBreakdown": "Mahsulotlar bo'yicha",
-    "markReady": "Tayyorligini bildirish",
+    "editOrder": "Tahrirlash",
+    "editing": "Tahrirlash rejimi",
+    "saveChanges": "Saqlash",
+    "confirmOrder": "Tasdiqlash",
+    "cancelOrder": "Buyurtmani bekor qilish",
+    "confirmCancel": "Buyurtmani bekor qilishni tasdiqlaysizmi?",
+    "addItem": "Dori qo'shish",
+    "removeItem": "O'chirish",
+    "applyCalculated": "Hisoblanganni qo'llash",
+    "calculatedTotal": "Hisoblangan",
+    "enterPrice": "Narx kiriting",
     "markComplete": "Bajarildi",
     "rejectOrder": "Rad etish",
     "rejectionReason": "Rad etish sababi",
@@ -189,11 +179,9 @@
     "importSuccess": "Import tugadi",
     "importErrors": "xato",
     "prescriptionImage": "Retsept rasmi",
-    "paymentStatus": {
-      "paid": "To'langan (online)",
-      "cash": "Kassada to'lanadi",
-      "pending": "To'lov kutilmoqda"
-    }
+    "replyImage": "Javob rasmi",
+    "uploadImage": "Rasmni yuklash",
+    "replaceImage": "Rasmni almashtirish"
   },
   "common": {
     "loading": "Yuklanmoqda...",

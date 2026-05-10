@@ -1,11 +1,9 @@
-"""
-T042-T045, T078-T079 - Order endpoints for customers.
+"""Order endpoints for customers.
 
 POST /orders              — create order
 GET  /orders              — list user orders
 GET  /orders/{id}         — get order detail
-POST /orders/{id}/confirm — confirm priced order
-POST /orders/{id}/cancel  — cancel order
+POST /orders/{id}/cancel  — cancel order (subject to ready-cancel quota)
 POST /orders/{id}/reorder — clone completed order
 """
 
@@ -13,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
@@ -22,16 +19,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.order import OrderStatus, PaymentMethod
+from app.models.order import OrderStatus
 from app.models.user import User
-from app.services.order_service import OrderService
+from app.services.order_service import (
+    CancelLimitExceededError,
+    OrderService,
+    order_service,
+)
 from app.services.storage_service import storage
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/orders", tags=["orders"])
-
-order_service = OrderService()
 
 
 # ---------------------------------------------------------------------------
@@ -50,10 +49,6 @@ class CreateOrderRequest(BaseModel):
     order_type: str = "medicine_search"
     items: list[OrderItemRequest] | None = None
     notes: str | None = None
-
-
-class ConfirmOrderRequest(BaseModel):
-    payment_method: str = "cash"
 
 
 class OrderItemResponse(BaseModel):
@@ -76,10 +71,9 @@ class OrderResponse(BaseModel):
     currency: str
     notes: str | None
     rejection_reason: str | None
-    payment_method: str | None
-    payment_status: str | None
+    can_cancel: bool
+    cancel_reason: str | None
     created_at: str
-    confirmed_at: str | None
     ready_at: str | None
     reply_image_url: str | None = None
     items: list[OrderItemResponse] = []
@@ -97,7 +91,11 @@ class OrderListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _order_to_response(order) -> OrderResponse:
+def _order_to_response(
+    order,
+    can_cancel: bool = False,
+    cancel_reason: str | None = None,
+) -> OrderResponse:
     reply_image_url = (
         f"/api/v1/orders/{order.id}/reply-image" if order.reply_image_key else None
     )
@@ -112,10 +110,9 @@ def _order_to_response(order) -> OrderResponse:
         currency=order.currency,
         notes=order.notes,
         rejection_reason=order.rejection_reason,
-        payment_method=order.payment_method.value if order.payment_method else None,
-        payment_status=order.payment_status.value if order.payment_status else None,
+        can_cancel=can_cancel,
+        cancel_reason=cancel_reason,
         created_at=order.created_at.isoformat() if order.created_at else "",
-        confirmed_at=order.confirmed_at.isoformat() if order.confirmed_at else None,
         ready_at=order.ready_at.isoformat() if order.ready_at else None,
         reply_image_url=reply_image_url,
         items=[
@@ -128,6 +125,15 @@ def _order_to_response(order) -> OrderResponse:
             for item in (order.items or [])
         ],
     )
+
+
+async def _build_response(
+    db: AsyncSession,
+    order,
+    svc: OrderService,
+) -> OrderResponse:
+    can_cancel, reason = await svc.get_cancel_availability(db, order)
+    return _order_to_response(order, can_cancel=can_cancel, cancel_reason=reason)
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +175,7 @@ async def create_order(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    return _order_to_response(order)
+    return await _build_response(db, order, order_service)
 
 
 # ---------------------------------------------------------------------------
@@ -200,10 +206,8 @@ async def list_orders(
         db, user_id=current_user.id, status=os, limit=limit, offset=offset
     )
 
-    return OrderListResponse(
-        orders=[_order_to_response(o) for o in orders],
-        total=total,
-    )
+    responses = [await _build_response(db, o, order_service) for o in orders]
+    return OrderListResponse(orders=responses, total=total)
 
 
 # ---------------------------------------------------------------------------
@@ -224,34 +228,7 @@ async def get_order(
     order = await order_service.get_order(db, order_id)
     if order is None or order.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-    return _order_to_response(order)
-
-
-# ---------------------------------------------------------------------------
-# POST /orders/{order_id}/confirm
-# ---------------------------------------------------------------------------
-
-
-@router.post(
-    "/{order_id}/confirm",
-    response_model=OrderResponse,
-    summary="Confirm a priced order",
-)
-async def confirm_order(
-    order_id: uuid.UUID,
-    body: ConfirmOrderRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> OrderResponse:
-    try:
-        order = await order_service.confirm_order(
-            db, order_id=order_id, user_id=current_user.id,
-            payment_method=body.payment_method,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-    return _order_to_response(order)
+    return await _build_response(db, order, order_service)
 
 
 # ---------------------------------------------------------------------------
@@ -273,10 +250,15 @@ async def cancel_order(
         order = await order_service.cancel_order(
             db, order_id=order_id, user_id=current_user.id
         )
+    except CancelLimitExceededError as e:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"reason": "ready_cancel_limit_exceeded", "message": str(e)},
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    return _order_to_response(order)
+    return await _build_response(db, order, order_service)
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +284,7 @@ async def reorder(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    return _order_to_response(order)
+    return await _build_response(db, order, order_service)
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +319,6 @@ async def download_reply_image(
             detail="Reply image file not found",
         )
 
-    # Determine content type from the key extension
     content_type = "image/png" if order.reply_image_key.endswith(".png") else "image/jpeg"
     file_name = order.reply_image_key.rsplit("/", 1)[-1]
 

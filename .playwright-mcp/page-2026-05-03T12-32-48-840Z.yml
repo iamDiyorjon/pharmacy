@@ -1,0 +1,58 @@
+- generic [ref=e2]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: 🏥
+        - generic [ref=e9]: Pharmacy Staff
+      - navigation [ref=e10]:
+        - link "📋 Buyurtmalar" [ref=e11] [cursor=pointer]:
+          - /url: /staff
+          - generic [ref=e12]: 📋
+          - text: Buyurtmalar
+        - link "💊 Dorilar" [ref=e13] [cursor=pointer]:
+          - /url: /staff/medicines
+          - generic [ref=e14]: 💊
+          - text: Dorilar
+    - button "🚪 Chiqish" [ref=e15] [cursor=pointer]
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - button "← Orqaga" [ref=e18] [cursor=pointer]
+      - generic [ref=e19]:
+        - heading "#ORD-20260503-6JA1" [level=1] [ref=e20]
+        - generic [ref=e21]: Yangi
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - heading "Mijoz ma'lumotlari" [level=2] [ref=e26]
+            - generic [ref=e27]:
+              - generic [ref=e28]: Ism
+              - generic [ref=e29]: Customer
+            - generic [ref=e30]:
+              - generic [ref=e31]: Telefon
+              - generic [ref=e32]: "+998900000002"
+            - generic [ref=e33]:
+              - generic [ref=e34]: Buyurtma
+              - generic [ref=e35]: Dori qidirish
+          - generic [ref=e68]:
+            - heading "Dorilar" [level=2] [ref=e69]
+            - table [ref=e70]:
+              - rowgroup [ref=e71]:
+                - row "Nomi Miqdor Umumiy narx" [ref=e72]:
+                  - columnheader "Nomi" [ref=e73]
+                  - columnheader "Miqdor" [ref=e74]
+                  - columnheader "Umumiy narx" [ref=e75]
+              - rowgroup [ref=e76]:
+                - row "UI-DiscardEdits 1 —" [ref=e77]:
+                  - cell "UI-DiscardEdits" [ref=e78]
+                  - cell "1" [ref=e79]
+                  - cell "—" [ref=e80]
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - heading "Umumiy narx" [level=2] [ref=e58]
+            - generic [ref=e81]: —
+          - generic [ref=e82]:
+            - heading "Amallar" [level=2] [ref=e83]
+            - button "Tasdiqlash" [disabled] [ref=e84] [cursor=pointer]
+            - button "Tahrirlash" [ref=e85] [cursor=pointer]
+            - button "Rad etish" [ref=e86] [cursor=pointer]
+            - button "Buyurtmani bekor qilish" [ref=e87] [cursor=pointer]

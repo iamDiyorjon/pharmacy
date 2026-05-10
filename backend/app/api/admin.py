@@ -165,6 +165,7 @@ async def update_pharmacy(
 @router.delete(
     "/pharmacies/{pharmacy_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Deactivate a pharmacy",
 )
 async def delete_pharmacy(

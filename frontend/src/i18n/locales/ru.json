@@ -67,41 +67,23 @@
     "orderNumber": "Номер заказа",
     "status": {
       "created": "Новый",
-      "priced": "Цена установлена",
-      "confirmed": "Подтверждён",
       "ready": "Готов к выдаче",
       "completed": "Выполнен",
       "cancelled": "Отменён",
       "rejected": "Отклонён"
     },
     "totalPrice": "Итоговая цена",
-    "paymentMethod": {
-      "cash": "Наличные",
-      "click": "Click",
-      "payme": "Payme"
-    },
-    "paymentStatus": {
-      "pending": "Ожидание",
-      "paid": "Оплачено",
-      "failed": "Ошибка оплаты"
-    },
-    "confirmPrice": "Подтвердить цену",
     "cancelOrder": "Отменить заказ",
+    "cancelLimitReached": "Лимит отмен исчерпан. Пожалуйста, свяжитесь с аптекой.",
     "reorder": "Повторить заказ",
     "pickupMessage": "Приходите в аптеку и заберите ваш заказ!",
     "rejectionReason": "Причина отклонения",
-    "selectPayment": "Выберите способ оплаты",
-    "payAtPickup": "Оплата при получении",
-    "paymentLabel": "Способ оплаты",
     "step": {
       "created": "Создан",
-      "priced": "Цена",
-      "confirmed": "Оплата",
       "ready": "Готов",
       "completed": "Готово"
     },
-    "waitingPharmacy": "Ожидаем установки цены аптекой",
-    "waitingReady": "Аптека готовит ваш заказ",
+    "waitingPharmacy": "Аптека готовит ваш заказ",
     "waitingPickup": "Ваш заказ готов к выдаче!"
   },
   "orders": {
@@ -165,11 +147,19 @@
     "medicines": "Лекарства",
     "allOrders": "Все",
     "newOrders": "Новые заказы",
-    "queue": "Очередь",
-    "priceOrder": "Установить цену",
+    "queue": "Действия",
     "totalPrice": "Итоговая цена",
-    "itemBreakdown": "По позициям",
-    "markReady": "Готово к выдаче",
+    "editOrder": "Редактировать",
+    "editing": "Редактирование",
+    "saveChanges": "Сохранить",
+    "confirmOrder": "Подтвердить",
+    "cancelOrder": "Отменить заказ",
+    "confirmCancel": "Отменить заказ?",
+    "addItem": "Добавить лекарство",
+    "removeItem": "Удалить",
+    "applyCalculated": "Применить расчёт",
+    "calculatedTotal": "Рассчитано",
+    "enterPrice": "Введите цену",
     "markComplete": "Выдано",
     "rejectOrder": "Отклонить",
     "rejectionReason": "Причина отклонения",
@@ -189,11 +179,9 @@
     "importSuccess": "Импорт завершён",
     "importErrors": "ошибок",
     "prescriptionImage": "Фото рецепта",
-    "paymentStatus": {
-      "paid": "Оплачено (онлайн)",
-      "cash": "Оплата наличными",
-      "pending": "Ожидание оплаты"
-    }
+    "replyImage": "Фото ответа",
+    "uploadImage": "Загрузить фото",
+    "replaceImage": "Заменить фото"
   },
   "common": {
     "loading": "Загрузка...",

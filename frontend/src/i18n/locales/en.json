@@ -67,41 +67,23 @@
     "orderNumber": "Order number",
     "status": {
       "created": "New",
-      "priced": "Price set",
-      "confirmed": "Confirmed",
       "ready": "Ready for pickup",
       "completed": "Completed",
       "cancelled": "Cancelled",
       "rejected": "Rejected"
     },
     "totalPrice": "Total price",
-    "paymentMethod": {
-      "cash": "Cash",
-      "click": "Click",
-      "payme": "Payme"
-    },
-    "paymentStatus": {
-      "pending": "Pending",
-      "paid": "Paid",
-      "failed": "Failed"
-    },
-    "confirmPrice": "Confirm price",
     "cancelOrder": "Cancel order",
+    "cancelLimitReached": "Cancellation limit reached. Please contact the pharmacy.",
     "reorder": "Reorder",
     "pickupMessage": "Come to the pharmacy and pick up your order!",
     "rejectionReason": "Rejection reason",
-    "selectPayment": "Select payment method",
-    "payAtPickup": "Pay at pickup",
-    "paymentLabel": "Payment method",
     "step": {
       "created": "Placed",
-      "priced": "Priced",
-      "confirmed": "Paid",
       "ready": "Ready",
       "completed": "Done"
     },
-    "waitingPharmacy": "Waiting for pharmacy to set the price",
-    "waitingReady": "Pharmacy is preparing your order",
+    "waitingPharmacy": "Pharmacy is preparing your order",
     "waitingPickup": "Your order is ready for pickup!"
   },
   "orders": {
@@ -165,11 +147,19 @@
     "medicines": "Medicines",
     "allOrders": "All",
     "newOrders": "New orders",
-    "queue": "Queue",
-    "priceOrder": "Set price",
+    "queue": "Actions",
     "totalPrice": "Total price",
-    "itemBreakdown": "Item breakdown",
-    "markReady": "Mark ready",
+    "editOrder": "Edit",
+    "editing": "Editing",
+    "saveChanges": "Save",
+    "confirmOrder": "Confirm",
+    "cancelOrder": "Cancel order",
+    "confirmCancel": "Cancel this order?",
+    "addItem": "Add medicine",
+    "removeItem": "Remove",
+    "applyCalculated": "Apply calculated",
+    "calculatedTotal": "Calculated",
+    "enterPrice": "Enter price",
     "markComplete": "Mark completed",
     "rejectOrder": "Reject",
     "rejectionReason": "Rejection reason",
@@ -189,11 +179,9 @@
     "importSuccess": "Import complete",
     "importErrors": "errors",
     "prescriptionImage": "Prescription image",
-    "paymentStatus": {
-      "paid": "Paid online",
-      "cash": "Pay at counter",
-      "pending": "Payment pending"
-    }
+    "replyImage": "Reply image",
+    "uploadImage": "Upload image",
+    "replaceImage": "Replace image"
   },
   "common": {
     "loading": "Loading...",

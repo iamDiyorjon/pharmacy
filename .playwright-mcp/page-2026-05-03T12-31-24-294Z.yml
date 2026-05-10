@@ -1,0 +1,64 @@
+- generic [ref=e2]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: 🏥
+        - generic [ref=e9]: Pharmacy Staff
+      - navigation [ref=e10]:
+        - link "📋 Buyurtmalar" [ref=e11] [cursor=pointer]:
+          - /url: /staff
+          - generic [ref=e12]: 📋
+          - text: Buyurtmalar
+        - link "💊 Dorilar" [ref=e13] [cursor=pointer]:
+          - /url: /staff/medicines
+          - generic [ref=e14]: 💊
+          - text: Dorilar
+    - button "🚪 Chiqish" [ref=e15] [cursor=pointer]
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - button "← Orqaga" [ref=e18] [cursor=pointer]
+      - generic [ref=e19]:
+        - heading "#ORD-20260503-9VHR" [level=1] [ref=e20]
+        - generic [ref=e21]: Yangi
+        - generic [ref=e58]: Tahrirlash rejimi
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - heading "Mijoz ma'lumotlari" [level=2] [ref=e25]
+            - generic [ref=e26]:
+              - generic [ref=e27]: Ism
+              - generic [ref=e28]: Customer
+            - generic [ref=e29]:
+              - generic [ref=e30]: Telefon
+              - generic [ref=e31]: "+998900000002"
+            - generic [ref=e32]:
+              - generic [ref=e33]: Buyurtma
+              - generic [ref=e34]: Dori qidirish
+          - generic [ref=e59]:
+            - heading "Dorilar" [level=2] [ref=e60]
+            - table [ref=e61]:
+              - rowgroup [ref=e62]:
+                - row "Nomi Miqdor Umumiy narx" [ref=e63]:
+                  - columnheader "Nomi" [ref=e64]
+                  - columnheader "Miqdor" [ref=e65]
+                  - columnheader "Umumiy narx" [ref=e66]
+                  - columnheader [ref=e67]
+              - rowgroup [ref=e68]:
+                - row "Added-Via-UI 1 12000 ✕" [ref=e94]:
+                  - cell "Added-Via-UI" [ref=e95]:
+                    - textbox "Nomi" [ref=e85]: Added-Via-UI
+                  - cell "1" [ref=e86]:
+                    - spinbutton [ref=e87]: "1"
+                  - cell "12000" [ref=e96]:
+                    - spinbutton [ref=e89]: "12000"
+                  - cell "✕" [ref=e90]:
+                    - button "✕" [ref=e91] [cursor=pointer]
+            - button "+ Dori qo'shish" [ref=e78] [cursor=pointer]
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - heading "Umumiy narx" [level=2] [ref=e50]
+            - 'button "Hisoblangan: 12,000 UZS" [active] [ref=e98] [cursor=pointer]'
+            - spinbutton [ref=e79]: "12000"
+          - generic [ref=e80]:
+            - button "Saqlash" [ref=e81] [cursor=pointer]
+            - button "Bekor qilish" [ref=e82] [cursor=pointer]

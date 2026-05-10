@@ -1,18 +1,49 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import {
   getStaffOrder,
-  priceOrder,
-  readyOrder,
+  updateStaffOrder,
+  confirmStaffOrder,
   completeOrder,
   rejectOrder,
+  staffCancelOrder,
   uploadReplyImage,
   getReplyImageUrl,
   type StaffOrder,
-  type PriceOrderItem,
+  type UpdateOrderItem,
 } from '../../services/api';
+
+interface EditableItem {
+  key: string;
+  medicine_id: string | null;
+  medicine_name: string;
+  quantity: number;
+  unit_price: number | null;
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  created: '#1565c0',
+  ready: '#1b5e20',
+  completed: '#2e7d32',
+  cancelled: '#888',
+  rejected: '#c62828',
+};
+
+function newKey() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function itemsFromOrder(order: StaffOrder): EditableItem[] {
+  return order.items.map((it) => ({
+    key: it.id,
+    medicine_id: it.medicine_id ?? null,
+    medicine_name: it.medicine_name,
+    quantity: it.quantity,
+    unit_price: it.unit_price,
+  }));
+}
 
 export default function StaffOrderDetail() {
   const { t } = useTranslation();
@@ -24,16 +55,13 @@ export default function StaffOrderDetail() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Pricing state
-  const [totalPrice, setTotalPrice] = useState('');
-  const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
-  const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [editItems, setEditItems] = useState<EditableItem[]>([]);
+  const [editTotal, setEditTotal] = useState('');
 
-  // Rejection state
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Reply image upload state
   const [replyImageFile, setReplyImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -42,21 +70,6 @@ export default function StaffOrderDetail() {
     try {
       const data = await getStaffOrder(id);
       setOrder(data);
-      const prices: Record<string, string> = {};
-      data.items.forEach((item) => {
-        prices[item.id] = item.unit_price?.toString() ?? '';
-      });
-      setItemPrices(prices);
-      if (data.total_price !== null) {
-        setTotalPrice(data.total_price.toString());
-      } else {
-        // Auto-calculate from item prices if no total yet
-        const sum = data.items.reduce((s, item) => {
-          const p = item.unit_price ?? 0;
-          return s + p * item.quantity;
-        }, 0);
-        if (sum > 0) setTotalPrice(sum.toString());
-      }
     } catch {
       setError(t('errors.orderNotFound'));
     } finally {
@@ -68,23 +81,66 @@ export default function StaffOrderDetail() {
     fetchOrder();
   }, [fetchOrder]);
 
-  async function handlePrice() {
-    if (!id || !totalPrice || parseFloat(totalPrice) <= 0) return;
-    setActionLoading(true);
-    try {
-      // Build items list: included items get their price, excluded items get 0
-      const items: PriceOrderItem[] = (order?.items ?? []).map((item) => ({
-        order_item_id: item.id,
-        unit_price: excludedItems.has(item.id)
-          ? 0
-          : parseFloat(itemPrices[item.id] ?? '0') || 0,
+  const calculatedTotal = useMemo(() => {
+    return editItems.reduce(
+      (sum, it) => sum + (it.unit_price ?? 0) * it.quantity,
+      0,
+    );
+  }, [editItems]);
+
+  function enterEditMode() {
+    if (!order) return;
+    setEditItems(itemsFromOrder(order));
+    setEditTotal(order.total_price !== null ? String(order.total_price) : '');
+    setMode('edit');
+  }
+
+  function discardEdits() {
+    setMode('view');
+    setEditItems([]);
+    setEditTotal('');
+  }
+
+  function updateEditItem(key: string, patch: Partial<EditableItem>) {
+    setEditItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+  }
+
+  function removeEditItem(key: string) {
+    setEditItems((prev) => prev.filter((it) => it.key !== key));
+  }
+
+  function addEditItem() {
+    setEditItems((prev) => [
+      ...prev,
+      { key: newKey(), medicine_id: null, medicine_name: '', quantity: 1, unit_price: null },
+    ]);
+  }
+
+  function applyCalculatedTotal() {
+    if (calculatedTotal > 0) setEditTotal(String(calculatedTotal));
+  }
+
+  async function handleSave() {
+    if (!id) return;
+    const payloadItems: UpdateOrderItem[] = editItems
+      .filter((it) => it.medicine_name.trim().length > 0)
+      .map((it) => ({
+        medicine_id: it.medicine_id,
+        medicine_name: it.medicine_name.trim(),
+        quantity: it.quantity,
+        unit_price: it.unit_price,
       }));
 
-      const updated = await priceOrder(id, {
-        total_price: parseFloat(totalPrice),
-        items: items.length > 0 ? items : undefined,
+    const totalPriceNum = editTotal ? parseFloat(editTotal) : null;
+
+    setActionLoading(true);
+    try {
+      const updated = await updateStaffOrder(id, {
+        items: payloadItems,
+        total_price: totalPriceNum,
       });
-      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
+      setOrder(updated);
+      setMode('view');
     } catch {
       setError(t('errors.networkError'));
     } finally {
@@ -92,26 +148,15 @@ export default function StaffOrderDetail() {
     }
   }
 
-  function toggleExclude(itemId: string) {
-    setExcludedItems((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
-      } else {
-        next.add(itemId);
-      }
-      return next;
-    });
-  }
-
-  async function handleReady() {
+  async function handleConfirm() {
     if (!id) return;
     setActionLoading(true);
     try {
-      const updated = await readyOrder(id);
-      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
-    } catch {
-      setError(t('errors.networkError'));
+      const updated = await confirmStaffOrder(id);
+      setOrder(updated);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      setError(err?.response?.data?.detail ?? t('errors.networkError'));
     } finally {
       setActionLoading(false);
     }
@@ -122,7 +167,7 @@ export default function StaffOrderDetail() {
     setActionLoading(true);
     try {
       const updated = await completeOrder(id);
-      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
+      setOrder(updated);
     } catch {
       setError(t('errors.networkError'));
     } finally {
@@ -135,8 +180,21 @@ export default function StaffOrderDetail() {
     setActionLoading(true);
     try {
       const updated = await rejectOrder(id, rejectionReason);
-      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
+      setOrder(updated);
       setShowRejectForm(false);
+    } catch {
+      setError(t('errors.networkError'));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleStaffCancel() {
+    if (!id || !window.confirm(t('staff.confirmCancel', 'Buyurtmani bekor qilish?'))) return;
+    setActionLoading(true);
+    try {
+      const updated = await staffCancelOrder(id);
+      setOrder(updated);
     } catch {
       setError(t('errors.networkError'));
     } finally {
@@ -149,7 +207,7 @@ export default function StaffOrderDetail() {
     setUploadingImage(true);
     try {
       const updated = await uploadReplyImage(id, replyImageFile);
-      setOrder((prev) => (prev ? { ...prev, ...updated } : null));
+      setOrder(updated);
       setReplyImageFile(null);
     } catch {
       setError(t('errors.networkError'));
@@ -158,46 +216,22 @@ export default function StaffOrderDetail() {
     }
   }
 
-  if (loading)
-    return (
-      <div style={styles.center}>
-        <p>{t('common.loading')}</p>
-      </div>
-    );
-  if (error && !order)
-    return (
-      <div style={styles.center}>
-        <p style={styles.errText}>{error}</p>
-      </div>
-    );
+  if (loading) {
+    return <div style={styles.center}><p>{t('common.loading')}</p></div>;
+  }
+  if (error && !order) {
+    return <div style={styles.center}><p style={styles.errText}>{error}</p></div>;
+  }
   if (!order) return null;
 
-  // Auto-update total when item prices change
-  const calculatedTotal = order.items.reduce((sum, item) => {
-    if (excludedItems.has(item.id)) return sum;
-    const unitPrice = parseFloat(itemPrices[item.id] ?? '0') || 0;
-    return sum + unitPrice * item.quantity;
-  }, 0);
-
+  const isCreated = order.status === 'created';
+  const isReady = order.status === 'ready';
   const isTerminal = ['completed', 'cancelled', 'rejected'].includes(order.status);
-  const canEditPrice = order.status === 'created' || order.status === 'priced';
-
-  // Status color
-  const statusColor: Record<string, string> = {
-    created: '#1565c0',
-    priced: '#e65100',
-    confirmed: '#283593',
-    ready: '#1b5e20',
-    completed: '#2e7d32',
-    cancelled: '#888',
-    rejected: '#c62828',
-  };
 
   return (
     <div style={styles.page}>
-      {/* Back + Header */}
       <button style={styles.backBtn} onClick={() => navigate('/staff')}>
-        {'\u2190'} {t('common.back')}
+        {'←'} {t('common.back')}
       </button>
 
       <header style={styles.header}>
@@ -205,17 +239,18 @@ export default function StaffOrderDetail() {
         <span
           style={{
             ...styles.statusBadge,
-            background: (statusColor[order.status] ?? '#888') + '18',
-            color: statusColor[order.status] ?? '#888',
+            background: (STATUS_COLOR[order.status] ?? '#888') + '18',
+            color: STATUS_COLOR[order.status] ?? '#888',
           }}
         >
           {t(`orderStatus.status.${order.status}`)}
         </span>
+        {mode === 'edit' && (
+          <span style={styles.editBadge}>{t('staff.editing', 'Tahrirlash')}</span>
+        )}
       </header>
 
-      {/* Two-column layout */}
       <div className="staff-order-columns" style={styles.columns}>
-        {/* LEFT — Order info */}
         <div style={styles.leftCol}>
           {/* Customer info */}
           <section style={styles.card}>
@@ -233,99 +268,99 @@ export default function StaffOrderDetail() {
             />
           </section>
 
-          {/* Order items table */}
-          {order.items.length > 0 && (
+          {/* Items — read-only in view mode */}
+          {mode === 'view' && order.items.length > 0 && (
             <section style={styles.card}>
               <h2 style={styles.cardTitle}>{t('order.medicines')}</h2>
               <table style={styles.itemTable}>
                 <thead>
                   <tr>
-                    {canEditPrice && <th style={styles.itemThCenter}></th>}
                     <th style={styles.itemTh}>{t('medicine.name')}</th>
                     <th style={styles.itemThCenter}>{t('order.quantity')}</th>
-                    <th style={styles.itemThRight}>
-                      {canEditPrice ? t('staff.totalPrice') : t('staff.totalPrice')}
-                    </th>
-                    {canEditPrice && <th style={styles.itemThRight}>{t('orders.total')}</th>}
+                    <th style={styles.itemThRight}>{t('staff.totalPrice')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items.map((item) => {
-                    const isExcluded = excludedItems.has(item.id);
-                    const priceVal = parseFloat(itemPrices[item.id] ?? '0') || 0;
-                    const rowStyle = isExcluded
-                      ? { opacity: 0.4, textDecoration: 'line-through' as const }
-                      : {};
-
-                    return (
-                      <tr key={item.id}>
-                        {canEditPrice && (
-                          <td style={styles.itemTdCenter}>
-                            <input
-                              type="checkbox"
-                              checked={!isExcluded}
-                              onChange={() => toggleExclude(item.id)}
-                              title={isExcluded
-                                ? t('staff.includeItem', 'Qo\'shish')
-                                : t('staff.excludeItem', 'Olib tashlash')}
-                              style={{ cursor: 'pointer', width: 18, height: 18 }}
-                            />
-                          </td>
-                        )}
-                        <td style={{ ...styles.itemTd, ...rowStyle }}>
-                          {item.medicine_name}
-                        </td>
-                        <td style={{ ...styles.itemTdCenter, ...rowStyle }}>
-                          {item.quantity}
-                        </td>
-                        <td style={{ ...styles.itemTdRight, ...rowStyle }}>
-                          {canEditPrice ? (
-                            <input
-                              style={{
-                                ...styles.priceInput,
-                                ...(isExcluded ? { opacity: 0.3, pointerEvents: 'none' as const } : {}),
-                              }}
-                              type="number"
-                              min="0"
-                              placeholder={t('staff.enterPrice', 'Narx kiriting')}
-                              value={isExcluded ? '' : (itemPrices[item.id] ?? '')}
-                              disabled={isExcluded}
-                              onChange={(e) => {
-                                const newPrices = { ...itemPrices, [item.id]: e.target.value };
-                                setItemPrices(newPrices);
-                                // Auto-update total from item prices
-                                const sum = (order?.items ?? []).reduce((s, it) => {
-                                  if (excludedItems.has(it.id)) return s;
-                                  const p = parseFloat(newPrices[it.id] ?? '0') || 0;
-                                  return s + p * it.quantity;
-                                }, 0);
-                                if (sum > 0) setTotalPrice(sum.toString());
-                              }}
-                            />
-                          ) : item.unit_price !== null && item.unit_price > 0 ? (
-                            `${item.unit_price.toLocaleString()} ${order.currency}`
-                          ) : item.unit_price === 0 ? (
-                            <span style={{ color: '#c62828', fontWeight: 600, fontSize: 12 }}>
-                              {t('staff.unavailable')}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        {canEditPrice && (
-                          <td style={{ ...styles.itemTdRight, ...rowStyle }}>
-                            <span style={styles.subtotal}>
-                              {!isExcluded && priceVal > 0
-                                ? `${(priceVal * item.quantity).toLocaleString()} ${order.currency}`
-                                : '—'}
-                            </span>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
+                  {order.items.map((item) => (
+                    <tr key={item.id}>
+                      <td style={styles.itemTd}>{item.medicine_name}</td>
+                      <td style={styles.itemTdCenter}>{item.quantity}</td>
+                      <td style={styles.itemTdRight}>
+                        {item.unit_price !== null && item.unit_price > 0
+                          ? `${item.unit_price.toLocaleString()} ${order.currency}`
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
+            </section>
+          )}
+
+          {/* Items — editable in edit mode */}
+          {mode === 'edit' && (
+            <section style={styles.card}>
+              <h2 style={styles.cardTitle}>{t('order.medicines')}</h2>
+              <table style={styles.itemTable}>
+                <thead>
+                  <tr>
+                    <th style={styles.itemTh}>{t('medicine.name')}</th>
+                    <th style={styles.itemThCenter}>{t('order.quantity')}</th>
+                    <th style={styles.itemThRight}>{t('staff.totalPrice')}</th>
+                    <th style={styles.itemThCenter}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {editItems.map((it) => (
+                    <tr key={it.key}>
+                      <td style={styles.itemTd}>
+                        <input
+                          style={styles.nameInput}
+                          type="text"
+                          value={it.medicine_name}
+                          onChange={(e) => updateEditItem(it.key, { medicine_name: e.target.value })}
+                          placeholder={t('medicine.name')}
+                        />
+                      </td>
+                      <td style={styles.itemTdCenter}>
+                        <input
+                          style={styles.qtyInput}
+                          type="number"
+                          min="1"
+                          value={it.quantity}
+                          onChange={(e) => updateEditItem(it.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                        />
+                      </td>
+                      <td style={styles.itemTdRight}>
+                        <input
+                          style={styles.priceInput}
+                          type="number"
+                          min="0"
+                          value={it.unit_price ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            updateEditItem(it.key, { unit_price: v ? parseFloat(v) : null });
+                          }}
+                          placeholder={t('staff.enterPrice', 'Narx')}
+                        />
+                      </td>
+                      <td style={styles.itemTdCenter}>
+                        <button
+                          type="button"
+                          style={styles.removeBtn}
+                          onClick={() => removeEditItem(it.key)}
+                          title={t('staff.removeItem', 'O\'chirish')}
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button type="button" style={styles.addItemBtn} onClick={addEditItem}>
+                + {t('staff.addItem', 'Dori qo\'shish')}
+              </button>
             </section>
           )}
 
@@ -348,57 +383,13 @@ export default function StaffOrderDetail() {
             </section>
           )}
 
-          {/* Reply image — editable for prescription orders in created/priced */}
-          {order.order_type === 'prescription' &&
-            canEditPrice && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>
-                  {t('staff.replyImage', 'Javob rasmi (skrinshot)')}
-                </h2>
-                {order.reply_image_url && (
-                  <a
-                    href={getReplyImageUrl(order.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={styles.imageLink}
-                  >
-                    <img
-                      src={getReplyImageUrl(order.id)}
-                      alt={t('staff.replyImage', 'Javob rasmi')}
-                      style={styles.prescriptionImg}
-                      loading="lazy"
-                    />
-                  </a>
-                )}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  style={styles.fileInput}
-                  onChange={(e) => setReplyImageFile(e.target.files?.[0] ?? null)}
-                />
-                {replyImageFile && <p style={styles.fileName}>{replyImageFile.name}</p>}
-                <button
-                  style={styles.btnSecondary}
-                  onClick={handleUploadReplyImage}
-                  disabled={uploadingImage || !replyImageFile}
-                >
-                  {uploadingImage
-                    ? t('common.loading')
-                    : order.reply_image_url
-                    ? t('staff.replaceImage', 'Rasmni almashtirish')
-                    : t('staff.uploadImage', 'Rasmni yuklash')}
-                </button>
-              </section>
-            )}
-
-          {/* Reply image read-only for non-editable statuses */}
-          {order.reply_image_url &&
-            order.order_type === 'prescription' &&
-            !canEditPrice && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>
-                  {t('staff.replyImage', 'Javob rasmi')}
-                </h2>
+          {/* Reply image — uploadable in edit mode for prescription orders */}
+          {order.order_type === 'prescription' && mode === 'edit' && isCreated && (
+            <section style={styles.card}>
+              <h2 style={styles.cardTitle}>
+                {t('staff.replyImage', 'Javob rasmi')}
+              </h2>
+              {order.reply_image_url && (
                 <a
                   href={getReplyImageUrl(order.id)}
                   target="_blank"
@@ -412,10 +403,47 @@ export default function StaffOrderDetail() {
                     loading="lazy"
                   />
                 </a>
-              </section>
-            )}
+              )}
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                style={styles.fileInput}
+                onChange={(e) => setReplyImageFile(e.target.files?.[0] ?? null)}
+              />
+              {replyImageFile && <p style={styles.fileName}>{replyImageFile.name}</p>}
+              <button
+                style={styles.btnSecondary}
+                onClick={handleUploadReplyImage}
+                disabled={uploadingImage || !replyImageFile}
+              >
+                {uploadingImage
+                  ? t('common.loading')
+                  : order.reply_image_url
+                  ? t('staff.replaceImage', 'Rasmni almashtirish')
+                  : t('staff.uploadImage', 'Rasmni yuklash')}
+              </button>
+            </section>
+          )}
 
-          {/* Notes */}
+          {order.reply_image_url && order.order_type === 'prescription' && mode === 'view' && (
+            <section style={styles.card}>
+              <h2 style={styles.cardTitle}>{t('staff.replyImage', 'Javob rasmi')}</h2>
+              <a
+                href={getReplyImageUrl(order.id)}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.imageLink}
+              >
+                <img
+                  src={getReplyImageUrl(order.id)}
+                  alt={t('staff.replyImage', 'Javob rasmi')}
+                  style={styles.prescriptionImg}
+                  loading="lazy"
+                />
+              </a>
+            </section>
+          )}
+
           {order.notes && (
             <section style={styles.card}>
               <h2 style={styles.cardTitle}>{t('order.notes')}</h2>
@@ -424,84 +452,88 @@ export default function StaffOrderDetail() {
           )}
         </div>
 
-        {/* RIGHT — Actions panel */}
         <div style={styles.rightCol}>
-          {/* Pricing form */}
-          {canEditPrice && (
+          {/* Total price section */}
+          <section style={styles.actionCard}>
+            <h2 style={styles.cardTitle}>{t('staff.totalPrice')}</h2>
+            {mode === 'view' ? (
+              order.total_price !== null ? (
+                <span style={styles.totalDisplay}>
+                  {order.total_price.toLocaleString()} {order.currency}
+                </span>
+              ) : (
+                <span style={{ color: '#bbb' }}>—</span>
+              )
+            ) : (
+              <>
+                {calculatedTotal > 0 && (
+                  <button
+                    type="button"
+                    style={styles.calculatedHint}
+                    onClick={applyCalculatedTotal}
+                    title={t('staff.applyCalculated', 'Hisoblanganni qo\'llash')}
+                  >
+                    {t('staff.calculatedTotal', 'Hisoblangan')}: {calculatedTotal.toLocaleString()} {order.currency}
+                  </button>
+                )}
+                <input
+                  style={styles.totalInput}
+                  type="number"
+                  min="0"
+                  placeholder={t('staff.enterPrice', 'Narx kiriting')}
+                  value={editTotal}
+                  onChange={(e) => setEditTotal(e.target.value)}
+                />
+              </>
+            )}
+          </section>
+
+          {error && <p style={styles.errText}>{error}</p>}
+
+          {/* Actions */}
+          {mode === 'edit' && (
             <section style={styles.actionCard}>
-              <h2 style={styles.cardTitle}>
-                {order.status === 'priced'
-                  ? t('staff.editPrice', 'Narxni tahrirlash')
-                  : t('staff.priceOrder')}
-              </h2>
-              <label style={styles.inputLabel}>{t('staff.totalPrice')}</label>
-              {order.items.length > 0 && calculatedTotal > 0 && (
-                <div style={styles.calculatedHint}>
-                  {t('staff.calculatedTotal', 'Hisoblangan')}: {calculatedTotal.toLocaleString()} {order.currency}
-                </div>
-              )}
-              <input
-                style={styles.totalInput}
-                type="number"
-                min="0"
-                placeholder={t('staff.enterPrice', 'Narx kiriting')}
-                value={totalPrice}
-                onChange={(e) => setTotalPrice(e.target.value)}
-              />
               <button
                 style={styles.btnPrimary}
-                onClick={handlePrice}
-                disabled={actionLoading || !totalPrice || parseFloat(totalPrice) <= 0}
+                onClick={handleSave}
+                disabled={actionLoading}
               >
-                {order.status === 'priced'
-                  ? t('staff.updatePrice', 'Narxni yangilash')
-                  : t('staff.priceOrder')}
+                {t('staff.saveChanges', 'Saqlash')}
+              </button>
+              <button
+                style={styles.btnGhost}
+                onClick={discardEdits}
+                disabled={actionLoading}
+              >
+                {t('common.cancel')}
               </button>
             </section>
           )}
 
-          {/* Payment info */}
-          {order.payment_method && (
-            <section style={styles.actionCard}>
-              <h2 style={styles.cardTitle}>{t('orderStatus.paymentMethod.cash')}</h2>
-              <span style={styles.payInfo}>
-                {order.payment_method === 'cash'
-                  ? t('staff.paymentStatus.cash')
-                  : order.payment_status === 'paid'
-                  ? t('staff.paymentStatus.paid')
-                  : t('staff.paymentStatus.pending')}
-              </span>
-            </section>
-          )}
-
-          {/* Price display for non-editable */}
-          {!canEditPrice && order.total_price !== null && (
-            <section style={styles.actionCard}>
-              <h2 style={styles.cardTitle}>{t('staff.totalPrice')}</h2>
-              <span style={styles.totalDisplay}>
-                {order.total_price.toLocaleString()} {order.currency}
-              </span>
-            </section>
-          )}
-
-          {error && <p style={styles.errText}>{error}</p>}
-
-          {/* Status action buttons */}
-          {!isTerminal && (
+          {mode === 'view' && !isTerminal && (
             <section style={styles.actionCard}>
               <h2 style={styles.cardTitle}>{t('staff.queue', 'Amallar')}</h2>
 
-              {order.status === 'confirmed' && (
-                <button
-                  style={styles.btnPrimary}
-                  onClick={handleReady}
-                  disabled={actionLoading}
-                >
-                  {t('staff.markReady')}
-                </button>
+              {isCreated && (
+                <>
+                  <button
+                    style={styles.btnPrimary}
+                    onClick={handleConfirm}
+                    disabled={actionLoading || order.total_price === null || order.total_price <= 0}
+                  >
+                    {t('staff.confirmOrder', 'Tasdiqlash')}
+                  </button>
+                  <button
+                    style={styles.btnSecondary}
+                    onClick={enterEditMode}
+                    disabled={actionLoading}
+                  >
+                    {t('staff.editOrder', 'Tahrirlash')}
+                  </button>
+                </>
               )}
 
-              {order.status === 'ready' && (
+              {isReady && (
                 <button
                   style={styles.btnPrimary}
                   onClick={handleComplete}
@@ -511,16 +543,15 @@ export default function StaffOrderDetail() {
                 </button>
               )}
 
-              {!showRejectForm &&
-                ['created', 'priced', 'confirmed'].includes(order.status) && (
-                  <button
-                    style={styles.btnDanger}
-                    onClick={() => setShowRejectForm(true)}
-                    disabled={actionLoading}
-                  >
-                    {t('staff.rejectOrder')}
-                  </button>
-                )}
+              {!showRejectForm && isCreated && (
+                <button
+                  style={styles.btnDanger}
+                  onClick={() => setShowRejectForm(true)}
+                  disabled={actionLoading}
+                >
+                  {t('staff.rejectOrder')}
+                </button>
+              )}
 
               {showRejectForm && (
                 <>
@@ -546,10 +577,19 @@ export default function StaffOrderDetail() {
                   </button>
                 </>
               )}
+
+              {(isCreated || isReady) && (
+                <button
+                  style={styles.btnDanger}
+                  onClick={handleStaffCancel}
+                  disabled={actionLoading}
+                >
+                  {t('staff.cancelOrder', 'Buyurtmani bekor qilish')}
+                </button>
+              )}
             </section>
           )}
 
-          {/* Rejection reason (terminal) */}
           {order.rejection_reason && (
             <section style={{ ...styles.actionCard, borderLeft: '3px solid #c62828' }}>
               <h2 style={styles.cardTitle}>{t('staff.rejectionReason')}</h2>
@@ -562,9 +602,6 @@ export default function StaffOrderDetail() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-component
-// ---------------------------------------------------------------------------
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={styles.infoRow}>
@@ -574,17 +611,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles: Record<string, React.CSSProperties> = {
   page: { minHeight: '100%' },
-  center: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '60vh',
-  },
+  center: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' },
   backBtn: {
     padding: '6px 0',
     border: 'none',
@@ -596,32 +625,20 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'block',
     marginBottom: 8,
   },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 24,
-  },
+  header: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 },
   title: { margin: 0, fontSize: 24, fontWeight: 700 },
-  statusBadge: {
-    fontSize: 13,
+  statusBadge: { fontSize: 13, fontWeight: 700, padding: '4px 14px', borderRadius: 20 },
+  editBadge: {
+    fontSize: 12,
     fontWeight: 700,
-    padding: '4px 14px',
-    borderRadius: 20,
+    padding: '3px 10px',
+    borderRadius: 12,
+    background: '#fff3e0',
+    color: '#e65100',
+    letterSpacing: 0.4,
   },
-  columns: {
-    display: 'flex',
-    gap: 24,
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-  },
-  leftCol: {
-    flex: '1 1 500px',
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
+  columns: { display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' },
+  leftCol: { flex: '1 1 500px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
   rightCol: {
     flex: '0 0 360px',
     display: 'flex',
@@ -654,20 +671,10 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  infoRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 8,
-    padding: '2px 0',
-  },
+  infoRow: { display: 'flex', justifyContent: 'space-between', gap: 8, padding: '2px 0' },
   infoLabel: { fontSize: 14, color: '#888' },
   infoValue: { fontSize: 14, fontWeight: 600 },
-
-  // Items table
-  itemTable: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
+  itemTable: { width: '100%', borderCollapse: 'collapse' },
   itemTh: {
     textAlign: 'left',
     padding: '8px 10px',
@@ -692,26 +699,28 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#888',
     borderBottom: '1px solid #e0e0e0',
   },
-  itemTd: {
-    padding: '10px',
+  itemTd: { padding: '10px', fontSize: 14, fontWeight: 500, borderBottom: '1px solid #f0f0f0' },
+  itemTdCenter: { textAlign: 'center', padding: '10px', fontSize: 14, borderBottom: '1px solid #f0f0f0' },
+  itemTdRight: { textAlign: 'right', padding: '10px', fontSize: 14, borderBottom: '1px solid #f0f0f0' },
+  nameInput: {
+    width: '100%',
+    padding: '6px 10px',
+    borderRadius: 6,
+    border: '1px solid #ccc',
     fontSize: 14,
-    fontWeight: 500,
-    borderBottom: '1px solid #f0f0f0',
+    boxSizing: 'border-box',
   },
-  itemTdCenter: {
+  qtyInput: {
+    width: 60,
+    padding: '6px 8px',
+    borderRadius: 6,
+    border: '1px solid #ccc',
+    fontSize: 14,
     textAlign: 'center',
-    padding: '10px',
-    fontSize: 14,
-    borderBottom: '1px solid #f0f0f0',
-  },
-  itemTdRight: {
-    textAlign: 'right',
-    padding: '10px',
-    fontSize: 14,
-    borderBottom: '1px solid #f0f0f0',
+    boxSizing: 'border-box',
   },
   priceInput: {
-    width: 100,
+    width: 110,
     padding: '6px 10px',
     borderRadius: 6,
     border: '1px solid #ccc',
@@ -719,17 +728,29 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'right',
     boxSizing: 'border-box',
   },
-  subtotal: {
+  removeBtn: {
+    width: 26,
+    height: 26,
+    border: 'none',
+    background: '#fce4ec',
+    color: '#c62828',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  addItemBtn: {
+    padding: '8px 14px',
+    border: '1px dashed #1565c0',
+    background: 'transparent',
+    color: '#1565c0',
+    fontSize: 13,
     fontWeight: 600,
-    color: '#333',
+    cursor: 'pointer',
+    borderRadius: 6,
+    alignSelf: 'flex-start',
   },
-
-  // Images
-  imageGrid: {
-    display: 'flex',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
+  imageGrid: { display: 'flex', gap: 12, flexWrap: 'wrap' },
   prescriptionImg: {
     maxWidth: '100%',
     maxHeight: 400,
@@ -738,15 +759,8 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #e0e0e0',
     display: 'block',
   },
-  imageLink: {
-    display: 'block',
-  },
-  fileInput: {
-    width: '100%',
-    padding: '8px 0',
-    fontSize: 13,
-    boxSizing: 'border-box' as const,
-  },
+  imageLink: { display: 'block' },
+  fileInput: { width: '100%', padding: '8px 0', fontSize: 13, boxSizing: 'border-box' as const },
   fileName: {
     margin: 0,
     fontSize: 12,
@@ -755,23 +769,8 @@ const styles: Record<string, React.CSSProperties> = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap' as const,
   },
-
   notes: { margin: 0, fontSize: 14, color: '#333' },
-
-  // Action buttons
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#888',
-  },
-  totalReadonly: {
-    padding: '10px 12px',
-    borderRadius: 8,
-    background: '#e8f5e9',
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1b5e20',
-  },
+  totalDisplay: { fontSize: 22, fontWeight: 700, color: '#1b5e20' },
   totalInput: {
     width: '100%',
     padding: '10px 12px',
@@ -788,15 +787,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 8px',
     borderRadius: 6,
     fontWeight: 600,
-  },
-  totalDisplay: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: '#1b5e20',
-  },
-  payInfo: {
-    fontSize: 14,
-    fontWeight: 600,
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'left',
   },
   btnPrimary: {
     padding: '12px 0',
@@ -852,16 +845,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
     boxSizing: 'border-box',
   },
-  rejectionText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#c62828',
-  },
-  errText: {
-    color: '#c62828',
-    fontSize: 13,
-    textAlign: 'center',
-    padding: '8px 0',
-    margin: 0,
-  },
+  rejectionText: { margin: 0, fontSize: 14, color: '#c62828' },
+  errText: { color: '#c62828', fontSize: 13, textAlign: 'center', padding: '8px 0', margin: 0 },
 };

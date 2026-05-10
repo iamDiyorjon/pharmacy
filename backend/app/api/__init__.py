@@ -12,7 +12,6 @@ from app.api.medicines import router as medicines_router
 from app.api.orders import router as orders_router
 from app.api.staff import router as staff_router
 from app.api.prescriptions import router as prescriptions_router
-from app.api.payments import router as payments_router
 
 router = APIRouter()
 
@@ -23,4 +22,3 @@ router.include_router(medicines_router)
 router.include_router(orders_router)
 router.include_router(staff_router)
 router.include_router(prescriptions_router)
-router.include_router(payments_router)

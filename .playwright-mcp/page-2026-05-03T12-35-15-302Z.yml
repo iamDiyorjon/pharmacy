@@ -1,0 +1,39 @@
+- generic [ref=e3]:
+  - main [ref=e4]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - heading "Buyurtma holati" [level=1] [ref=e23]
+          - generic [ref=e24]: "#ORD-20260503-M2T9"
+        - generic [ref=e25]: Bekor qilindi
+      - paragraph [ref=e61]: Bekor qilindi
+      - generic [ref=e43]:
+        - generic [ref=e44]: 🏥
+        - generic [ref=e45]:
+          - generic [ref=e46]: Dorixona
+          - generic [ref=e47]: Test Pharmacy
+      - generic [ref=e48]:
+        - heading "Dorilar" [level=3] [ref=e49]
+        - generic [ref=e51]:
+          - generic [ref=e52]: UI-Cust-Cancel
+          - generic [ref=e53]: ×1
+      - generic [ref=e55]:
+        - generic [ref=e56]: Sana
+        - generic [ref=e57]: 5/3/2026, 5:34:12 PM
+  - navigation "Bottom navigation" [ref=e7]:
+    - link "Bosh sahifa" [ref=e8] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e9]: 🏠
+      - generic [ref=e10]: Bosh sahifa
+    - link "Qidirish" [ref=e11] [cursor=pointer]:
+      - /url: /search
+      - generic [ref=e12]: 🔍
+      - generic [ref=e13]: Qidirish
+    - link "Buyurtmalar" [ref=e14] [cursor=pointer]:
+      - /url: /orders
+      - generic [ref=e15]: 📋
+      - generic [ref=e16]: Buyurtmalar
+    - link "Sozlamalar" [ref=e17] [cursor=pointer]:
+      - /url: /settings
+      - generic [ref=e18]: ⚙️
+      - generic [ref=e19]: Sozlamalar

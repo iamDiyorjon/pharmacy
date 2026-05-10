@@ -26,8 +26,6 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 
 class OrderStatus(str, enum.Enum):
     CREATED = "created"
-    PRICED = "priced"
-    CONFIRMED = "confirmed"
     READY = "ready"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
@@ -37,18 +35,6 @@ class OrderStatus(str, enum.Enum):
 class OrderType(str, enum.Enum):
     MEDICINE_SEARCH = "medicine_search"
     PRESCRIPTION = "prescription"
-
-
-class PaymentMethod(str, enum.Enum):
-    CASH = "cash"
-    CLICK = "click"
-    PAYME = "payme"
-
-
-class PaymentStatus(str, enum.Enum):
-    PENDING = "pending"
-    PAID = "paid"
-    FAILED = "failed"
 
 
 class Order(Base, UUIDMixin, TimestampMixin):
@@ -86,22 +72,11 @@ class Order(Base, UUIDMixin, TimestampMixin):
     # Staff reply image (screenshot from POS/calculator app)
     reply_image_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Payment fields (T068)
-    payment_method: Mapped[PaymentMethod | None] = mapped_column(
-        Enum(PaymentMethod, name="payment_method", values_callable=lambda x: [e.value for e in x]),
-        nullable=True,
-    )
-    payment_status: Mapped[PaymentStatus | None] = mapped_column(
-        Enum(PaymentStatus, name="payment_status", values_callable=lambda x: [e.value for e in x]),
-        nullable=True,
-    )
-
     # Timestamps for state transitions
-    priced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
