@@ -95,8 +95,11 @@ class TokenResponse(BaseModel):
     expires_in: int = Field(description="Token lifetime in seconds")
     user_id: str = Field(description="Internal user UUID")
     telegram_user_id: int | None = None
-    is_staff: bool = Field(default=False, description="Whether user is registered staff")
+    is_staff: bool = Field(
+        default=False, description="Whether user is registered staff"
+    )
     first_name: str | None = None
+    phone: str | None = None
 
 
 class UserProfile(BaseModel):
@@ -240,7 +243,9 @@ async def auth_init(
             await db.refresh(user)
         logger.debug("auth_init: existing user telegram_user_id=%s", telegram_user_id)
 
-    is_staff = await _check_staff(db, telegram_user_id=telegram_user_id, user_id=user.id)
+    is_staff = await _check_staff(
+        db, telegram_user_id=telegram_user_id, user_id=user.id
+    )
 
     token, expire = create_access_token(user.id, user.telegram_user_id, "tma")
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -253,6 +258,7 @@ async def auth_init(
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
         first_name=user.first_name,
+        phone=user.phone,
     )
 
 
@@ -308,7 +314,9 @@ async def token_login(
             detail="User not found",
         )
 
-    is_staff = await _check_staff(db, telegram_user_id=user.telegram_user_id, user_id=user.id)
+    is_staff = await _check_staff(
+        db, telegram_user_id=user.telegram_user_id, user_id=user.id
+    )
 
     auth_method = payload.get("auth", "tma")
     token, expire = create_access_token(user.id, user.telegram_user_id, auth_method)
@@ -322,6 +330,7 @@ async def token_login(
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
         first_name=user.first_name,
+        phone=user.phone,
     )
 
 
@@ -361,7 +370,9 @@ async def web_login(
             detail="Invalid phone or password",
         )
 
-    is_staff = await _check_staff(db, telegram_user_id=user.telegram_user_id, user_id=user.id)
+    is_staff = await _check_staff(
+        db, telegram_user_id=user.telegram_user_id, user_id=user.id
+    )
 
     token, expire = create_access_token(user.id, user.telegram_user_id, "web")
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -374,4 +385,5 @@ async def web_login(
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
         first_name=user.first_name,
+        phone=user.phone,
     )

@@ -21,7 +21,15 @@ import uuid
 from decimal import Decimal
 
 from aiogram import Bot
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +37,7 @@ from app.api.deps import get_current_staff
 from app.db.session import get_db
 from app.models.order import OrderStatus
 from app.models.staff import PharmacyStaff
+from app.services.event_broker import publish_order_event
 from app.services.medicine_service import MedicineService
 from app.services.notification_service import notify_customer
 from app.services.order_service import OrderService
@@ -108,6 +117,7 @@ class StaffOrderResponse(BaseModel):
     user_phone: str | None
     user_telegram_username: str | None = None
     user_telegram_id: int | None = None
+    contact_phone: str | None = None
     created_at: str
     ready_at: str | None
     reply_image_url: str | None = None
@@ -158,9 +168,7 @@ def _get_bot(request: Request) -> Bot:
 def _build_ready_message(order, lang: str) -> str:
     """Detailed customer notification: order is ready, with items + total."""
     price_str = (
-        f"{float(order.total_price):,.0f} {order.currency}"
-        if order.total_price
-        else ""
+        f"{float(order.total_price):,.0f} {order.currency}" if order.total_price else ""
     )
 
     available_items = []
@@ -272,7 +280,9 @@ def _staff_order_response(order) -> StaffOrderResponse:
         id=str(order.id),
         order_number=order.order_number,
         status=order.status.value if hasattr(order.status, "value") else order.status,
-        order_type=order.order_type.value if hasattr(order.order_type, "value") else order.order_type,
+        order_type=order.order_type.value
+        if hasattr(order.order_type, "value")
+        else order.order_type,
         total_price=float(order.total_price) if order.total_price else None,
         currency=order.currency,
         notes=order.notes,
@@ -282,6 +292,7 @@ def _staff_order_response(order) -> StaffOrderResponse:
         user_phone=order.user.phone if order.user else None,
         user_telegram_username=order.user.telegram_username if order.user else None,
         user_telegram_id=order.user.telegram_user_id if order.user else None,
+        contact_phone=order.contact_phone,
         created_at=order.created_at.isoformat() if order.created_at else "",
         ready_at=order.ready_at.isoformat() if order.ready_at else None,
         reply_image_url=reply_image_url,
@@ -359,7 +370,9 @@ async def get_staff_order(
 ) -> StaffOrderResponse:
     order = await order_service.get_order(db, order_id)
     if order is None or order.pharmacy_id != staff.pharmacy_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        )
     return _staff_order_response(order)
 
 
@@ -395,11 +408,14 @@ async def update_order(
             order_id=order_id,
             staff_id=staff.id,
             items=items,
-            total_price=Decimal(str(body.total_price)) if body.total_price is not None else None,
+            total_price=Decimal(str(body.total_price))
+            if body.total_price is not None
+            else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    await publish_order_event(order, "order_updated")
     return _staff_order_response(order)
 
 
@@ -426,6 +442,7 @@ async def confirm_order(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await _notify_order_status(_get_bot(request), order, "ready")
+    await publish_order_event(order, "order_status_changed")
     return _staff_order_response(order)
 
 
@@ -446,10 +463,13 @@ async def mark_complete(
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> StaffOrderResponse:
     try:
-        order = await order_service.mark_complete(db, order_id=order_id, staff_id=staff.id)
+        order = await order_service.mark_complete(
+            db, order_id=order_id, staff_id=staff.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await _notify_order_status(_get_bot(request), order, "completed")
+    await publish_order_event(order, "order_status_changed")
     return _staff_order_response(order)
 
 
@@ -477,6 +497,7 @@ async def reject_order(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await _notify_order_status(_get_bot(request), order, "rejected", extra=body.reason)
+    await publish_order_event(order, "order_status_changed")
     return _staff_order_response(order)
 
 
@@ -503,6 +524,7 @@ async def staff_cancel(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     await _notify_order_status(_get_bot(request), order, "cancelled_by_staff")
+    await publish_order_event(order, "order_status_changed")
     return _staff_order_response(order)
 
 
@@ -527,16 +549,24 @@ async def upload_reply_image(
 ) -> StaffOrderResponse:
     order = await order_service.get_order(db, order_id)
     if order is None or order.pharmacy_id != staff.pharmacy_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        )
 
-    order_type = order.order_type.value if hasattr(order.order_type, "value") else order.order_type
+    order_type = (
+        order.order_type.value
+        if hasattr(order.order_type, "value")
+        else order.order_type
+    )
     if order_type != "prescription":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reply image can only be uploaded for prescription orders",
         )
 
-    order_status = order.status.value if hasattr(order.status, "value") else order.status
+    order_status = (
+        order.status.value if hasattr(order.status, "value") else order.status
+    )
     if order_status != "created":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -564,7 +594,9 @@ async def upload_reply_image(
         try:
             await storage.delete_file(order.reply_image_key)
         except Exception:
-            logger.warning("Failed to delete old reply image key='%s'", order.reply_image_key)
+            logger.warning(
+                "Failed to delete old reply image key='%s'", order.reply_image_key
+            )
 
     await storage.upload_file(file_data, file_key, content_type)
 
@@ -572,6 +604,7 @@ async def upload_reply_image(
     await db.commit()
 
     order = await order_service.get_order(db, order_id)
+    await publish_order_event(order, "order_updated")
     return _staff_order_response(order)
 
 
@@ -591,7 +624,9 @@ async def list_medicines(
     db: AsyncSession = Depends(get_db),
     staff: PharmacyStaff = Depends(get_current_staff),
 ) -> MedicineListResponse:
-    medicines, total = await medicine_service.list_medicines(db, limit=limit, offset=offset)
+    medicines, total = await medicine_service.list_medicines(
+        db, limit=limit, offset=offset
+    )
     return MedicineListResponse(
         medicines=[
             MedicineResponse(

@@ -21,7 +21,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import async_session
-from app.models.medicine import Medicine, MedicineAvailability
+from app.models.medicine import Medicine, MedicineAvailability, normalize_medicine_name
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,9 @@ async def import_drugs_from_excel(file_path: str, pharmacy_id: UUID) -> dict:
     stats = {"new": 0, "updated": 0, "skipped": 0, "errors": 0}
 
     async with async_session() as session:
-        for row_num, row in enumerate(ws.iter_rows(min_row=DATA_START_ROW), start=DATA_START_ROW):
+        for row_num, row in enumerate(
+            ws.iter_rows(min_row=DATA_START_ROW), start=DATA_START_ROW
+        ):
             try:
                 name_ru = row[1].value  # Column B (index 1)
                 if not name_ru or not str(name_ru).strip():
@@ -76,14 +78,17 @@ async def import_drugs_from_excel(file_path: str, pharmacy_id: UUID) -> dict:
                     continue
 
                 name_ru = str(name_ru).strip()
-                manufacturer = str(row[2].value).strip() if row[2].value else None  # Column C
+                manufacturer = (
+                    str(row[2].value).strip() if row[2].value else None
+                )  # Column C
                 expiry_date = _parse_expiry(row[3].value)  # Column D
                 price = _parse_number(row[4].value)  # Column E
                 quantity = _parse_number(row[5].value, default=0)  # Column F
 
-                # Upsert Medicine by name_ru
+                # Upsert Medicine by normalized name (case/whitespace/punct insensitive)
+                norm_name = normalize_medicine_name(name_ru)
                 result = await session.execute(
-                    select(Medicine).where(Medicine.name_ru == name_ru)
+                    select(Medicine).where(Medicine.normalized_name == norm_name)
                 )
                 medicine = result.scalar_one_or_none()
 
@@ -91,6 +96,7 @@ async def import_drugs_from_excel(file_path: str, pharmacy_id: UUID) -> dict:
                     medicine = Medicine(
                         name=name_ru,  # Use Russian name as primary name too
                         name_ru=name_ru,
+                        normalized_name=norm_name,
                         manufacturer=manufacturer,
                     )
                     session.add(medicine)
@@ -139,6 +145,9 @@ async def import_drugs_from_excel(file_path: str, pharmacy_id: UUID) -> dict:
 
     logger.info(
         "Import complete: %d new, %d updated, %d skipped, %d errors",
-        stats["new"], stats["updated"], stats["skipped"], stats["errors"],
+        stats["new"],
+        stats["updated"],
+        stats["skipped"],
+        stats["errors"],
     )
     return stats

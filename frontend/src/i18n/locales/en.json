@@ -60,7 +60,13 @@
     "orderType": {
       "medicine_search": "Medicine search",
       "prescription": "Prescription"
-    }
+    },
+    "contactPhone": "Contact phone",
+    "contactPhoneHint": "The pharmacy will call this number if needed.",
+    "myPhone": "My phone",
+    "otherPhone": "Different phone",
+    "phoneRequired": "Phone number is required",
+    "phoneInvalid": "Invalid phone format"
   },
   "orderStatus": {
     "title": "Order Status",
@@ -81,10 +87,28 @@
     "step": {
       "created": "Placed",
       "ready": "Ready",
-      "completed": "Done"
+      "completed": "Completed"
     },
-    "waitingPharmacy": "Pharmacy is preparing your order",
-    "waitingPickup": "Your order is ready for pickup!"
+    "waitingPharmacy": {
+      "title": "Your order has been received",
+      "subtitle": "Our specialists are carefully preparing your order. We'll notify you the moment it's ready."
+    },
+    "waitingPickup": {
+      "title": "Your order is awaiting you",
+      "subtitle": "Please visit the pharmacy and present your order number to our staff. We look forward to welcoming you."
+    },
+    "completedMessage": {
+      "title": "Thank you for choosing us",
+      "subtitle": "Your order has been successfully completed. Your health and trust are our highest priority."
+    },
+    "cancelledMessage": {
+      "title": "Order cancelled",
+      "subtitle": "This order was cancelled at your request. We apologise for any inconvenience caused."
+    },
+    "rejectedMessage": {
+      "title": "Order could not be fulfilled",
+      "subtitle": "Unfortunately, we are unable to fulfil this order. Please review the note below — you are welcome to try another pharmacy."
+    }
   },
   "orders": {
     "title": "My Orders",
@@ -124,7 +148,12 @@
     "phone": "Phone",
     "username": "Username",
     "premium": "Telegram Premium",
-    "telegramId": "Telegram ID"
+    "telegramId": "Telegram ID",
+    "phoneNotSet": "Not set",
+    "editPhone": "Edit",
+    "savePhone": "Save",
+    "phoneInvalid": "Invalid phone format",
+    "phoneInUse": "This number is linked to another account"
   },
   "pharmacy": {
     "address": "Address",
@@ -181,7 +210,8 @@
     "prescriptionImage": "Prescription image",
     "replyImage": "Reply image",
     "uploadImage": "Upload image",
-    "replaceImage": "Replace image"
+    "replaceImage": "Replace image",
+    "alternatePhone": "Different phone"
   },
   "common": {
     "loading": "Loading...",

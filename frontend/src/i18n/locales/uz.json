@@ -60,7 +60,13 @@
     "orderType": {
       "medicine_search": "Dori qidirish",
       "prescription": "Retsept"
-    }
+    },
+    "contactPhone": "Aloqa raqami",
+    "contactPhoneHint": "Dorixona kerak bo'lsa shu raqamga qo'ng'iroq qiladi.",
+    "myPhone": "Mening raqamim",
+    "otherPhone": "Boshqa raqam",
+    "phoneRequired": "Telefon raqam kiritish shart",
+    "phoneInvalid": "Raqam noto'g'ri formatda"
   },
   "orderStatus": {
     "title": "Buyurtma holati",
@@ -74,17 +80,35 @@
     },
     "totalPrice": "Umumiy narx",
     "cancelOrder": "Buyurtmani bekor qilish",
-    "cancelLimitReached": "Bekor qilish limiti tugagan. Iltimos, dorixonaga murojaat qiling.",
-    "reorder": "Qayta buyurtma",
+    "cancelLimitReached": "Bekor qilish limiti tugagan. Iltimos, dorixona bilan bog'laning.",
+    "reorder": "Qayta buyurtma berish",
     "pickupMessage": "Dorixonaga keling va buyurtmangizni olib keting!",
     "rejectionReason": "Rad etish sababi",
     "step": {
-      "created": "Yaratildi",
+      "created": "Qabul qilindi",
       "ready": "Tayyor",
-      "completed": "Bajarildi"
+      "completed": "Yakunlandi"
     },
-    "waitingPharmacy": "Dorixona buyurtmangizni tayyorlamoqda",
-    "waitingPickup": "Buyurtmangiz tayyor! Olib keting!"
+    "waitingPharmacy": {
+      "title": "Buyurtmangiz qabul qilindi",
+      "subtitle": "Dorixona mutaxassislari buyurtmangizni puxtalik bilan tayyorlamoqda. Tayyor bo'lishi bilan sizni darhol xabardor qilamiz."
+    },
+    "waitingPickup": {
+      "title": "Buyurtmangiz sizni kutmoqda",
+      "subtitle": "Dorixonaga tashrif buyuring va kassada buyurtma raqamingizni ko'rsating. Sizni samimiy kutib olamiz."
+    },
+    "completedMessage": {
+      "title": "Bizni tanlaganingiz uchun rahmat",
+      "subtitle": "Buyurtmangiz muvaffaqiyatli yakunlandi. Sog'lig'ingiz va ishonchingiz biz uchun eng muhim qadriyat."
+    },
+    "cancelledMessage": {
+      "title": "Buyurtma bekor qilindi",
+      "subtitle": "Buyurtmangiz sizning iltimosingizga ko'ra bekor qilindi. Yetkazilgan noqulaylik uchun uzr so'raymiz."
+    },
+    "rejectedMessage": {
+      "title": "Buyurtma qabul qilinmadi",
+      "subtitle": "Afsuski, ushbu buyurtmani bajarib bera olmaymiz. Quyidagi izoh bilan tanishing va boshqa dorixonaga murojaat qilishingiz mumkin."
+    }
   },
   "orders": {
     "title": "Mening buyurtmalarim",
@@ -124,7 +148,12 @@
     "phone": "Telefon",
     "username": "Foydalanuvchi nomi",
     "premium": "Telegram Premium",
-    "telegramId": "Telegram ID"
+    "telegramId": "Telegram ID",
+    "phoneNotSet": "Kiritilmagan",
+    "editPhone": "Tahrirlash",
+    "savePhone": "Saqlash",
+    "phoneInvalid": "Raqam noto'g'ri formatda",
+    "phoneInUse": "Bu raqam boshqa hisobga biriktirilgan"
   },
   "pharmacy": {
     "address": "Manzil",
@@ -181,7 +210,8 @@
     "prescriptionImage": "Retsept rasmi",
     "replyImage": "Javob rasmi",
     "uploadImage": "Rasmni yuklash",
-    "replaceImage": "Rasmni almashtirish"
+    "replaceImage": "Rasmni almashtirish",
+    "alternatePhone": "Boshqa raqam"
   },
   "common": {
     "loading": "Yuklanmoqda...",

@@ -60,7 +60,13 @@
     "orderType": {
       "medicine_search": "Поиск лекарств",
       "prescription": "Рецепт"
-    }
+    },
+    "contactPhone": "Контактный номер",
+    "contactPhoneHint": "Аптека позвонит на этот номер при необходимости.",
+    "myPhone": "Мой номер",
+    "otherPhone": "Другой номер",
+    "phoneRequired": "Введите номер телефона",
+    "phoneInvalid": "Неверный формат номера"
   },
   "orderStatus": {
     "title": "Статус заказа",
@@ -79,12 +85,30 @@
     "pickupMessage": "Приходите в аптеку и заберите ваш заказ!",
     "rejectionReason": "Причина отклонения",
     "step": {
-      "created": "Создан",
+      "created": "Принят",
       "ready": "Готов",
-      "completed": "Готово"
+      "completed": "Завершён"
     },
-    "waitingPharmacy": "Аптека готовит ваш заказ",
-    "waitingPickup": "Ваш заказ готов к выдаче!"
+    "waitingPharmacy": {
+      "title": "Ваш заказ принят",
+      "subtitle": "Специалисты аптеки внимательно подготавливают ваш заказ. Мы уведомим вас сразу же, как только всё будет готово."
+    },
+    "waitingPickup": {
+      "title": "Ваш заказ ожидает вас",
+      "subtitle": "Посетите аптеку и предъявите номер заказа сотруднику на кассе. Будем рады встрече."
+    },
+    "completedMessage": {
+      "title": "Благодарим за ваш выбор",
+      "subtitle": "Ваш заказ успешно завершён. Ваше здоровье и доверие — главная ценность для нас."
+    },
+    "cancelledMessage": {
+      "title": "Заказ отменён",
+      "subtitle": "Заказ был отменён по вашему запросу. Приносим извинения за возможные неудобства."
+    },
+    "rejectedMessage": {
+      "title": "Заказ не принят",
+      "subtitle": "К сожалению, мы не можем выполнить этот заказ. Ознакомьтесь с комментарием ниже — вы можете обратиться в другую аптеку."
+    }
   },
   "orders": {
     "title": "Мои заказы",
@@ -124,7 +148,12 @@
     "phone": "Телефон",
     "username": "Имя пользователя",
     "premium": "Telegram Premium",
-    "telegramId": "Telegram ID"
+    "telegramId": "Telegram ID",
+    "phoneNotSet": "Не указан",
+    "editPhone": "Изменить",
+    "savePhone": "Сохранить",
+    "phoneInvalid": "Неверный формат номера",
+    "phoneInUse": "Этот номер привязан к другому аккаунту"
   },
   "pharmacy": {
     "address": "Адрес",
@@ -181,7 +210,8 @@
     "prescriptionImage": "Фото рецепта",
     "replyImage": "Фото ответа",
     "uploadImage": "Загрузить фото",
-    "replaceImage": "Заменить фото"
+    "replaceImage": "Заменить фото",
+    "alternatePhone": "Другой номер"
   },
   "common": {
     "loading": "Загрузка...",

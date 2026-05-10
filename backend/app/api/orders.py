@@ -21,6 +21,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.order import OrderStatus
 from app.models.user import User
+from app.services.event_broker import publish_order_event
 from app.services.order_service import (
     CancelLimitExceededError,
     OrderService,
@@ -49,6 +50,11 @@ class CreateOrderRequest(BaseModel):
     order_type: str = "medicine_search"
     items: list[OrderItemRequest] | None = None
     notes: str | None = None
+    contact_phone: str | None = Field(
+        default=None,
+        pattern=r"^\+?\d{9,15}$",
+        description="Optional override; falls back to user.phone when null.",
+    )
 
 
 class OrderItemResponse(BaseModel):
@@ -103,7 +109,9 @@ def _order_to_response(
         id=str(order.id),
         order_number=order.order_number,
         status=order.status.value if hasattr(order.status, "value") else order.status,
-        order_type=order.order_type.value if hasattr(order.order_type, "value") else order.order_type,
+        order_type=order.order_type.value
+        if hasattr(order.order_type, "value")
+        else order.order_type,
         pharmacy_id=str(order.pharmacy_id),
         pharmacy_name=order.pharmacy.name if order.pharmacy else "Unknown",
         total_price=float(order.total_price) if order.total_price else None,
@@ -171,10 +179,12 @@ async def create_order(
             order_type=body.order_type,
             items=items,
             notes=body.notes,
+            contact_phone=body.contact_phone,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    await publish_order_event(order, "order_created")
     return await _build_response(db, order, order_service)
 
 
@@ -227,7 +237,9 @@ async def get_order(
 ) -> OrderResponse:
     order = await order_service.get_order(db, order_id)
     if order is None or order.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        )
     return await _build_response(db, order, order_service)
 
 
@@ -258,6 +270,7 @@ async def cancel_order(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    await publish_order_event(order, "order_status_changed")
     return await _build_response(db, order, order_service)
 
 
@@ -303,7 +316,9 @@ async def download_reply_image(
 ) -> Response:
     order = await order_service.get_order(db, order_id)
     if order is None or order.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        )
 
     if not order.reply_image_key:
         raise HTTPException(
@@ -319,7 +334,9 @@ async def download_reply_image(
             detail="Reply image file not found",
         )
 
-    content_type = "image/png" if order.reply_image_key.endswith(".png") else "image/jpeg"
+    content_type = (
+        "image/png" if order.reply_image_key.endswith(".png") else "image/jpeg"
+    )
     file_name = order.reply_image_key.rsplit("/", 1)[-1]
 
     return Response(

@@ -40,7 +40,9 @@ class OrderService:
     def generate_order_number(self) -> str:
         """Generate unique order number like 'ORD-20260223-XXXX'."""
         date_part = datetime.now(timezone.utc).strftime("%Y%m%d")
-        random_part = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        random_part = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=4)
+        )
         return f"ORD-{date_part}-{random_part}"
 
     async def create_order(
@@ -51,6 +53,7 @@ class OrderService:
         order_type: OrderType,
         items: list[dict] | None = None,
         notes: str | None = None,
+        contact_phone: str | None = None,
     ) -> Order:
         """Create order with items, validate pharmacy exists.
 
@@ -72,15 +75,14 @@ class OrderService:
             order_type=order_type,
             status=OrderStatus.CREATED,
             notes=notes,
+            contact_phone=contact_phone,
             expires_at=now + timedelta(hours=2),
         )
         db.add(order)
         await db.flush()
 
         if items:
-            medicine_ids = [
-                i["medicine_id"] for i in items if i.get("medicine_id")
-            ]
+            medicine_ids = [i["medicine_id"] for i in items if i.get("medicine_id")]
             price_map: dict[str, Decimal] = {}
             if medicine_ids:
                 avail_stmt = select(MedicineAvailability).where(
@@ -181,7 +183,9 @@ class OrderService:
         user_id: UUID,
     ) -> int:
         """Count cancellations of READY orders by this user in the rolling window."""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self.READY_CANCEL_WINDOW_DAYS)
+        cutoff = datetime.now(timezone.utc) - timedelta(
+            days=self.READY_CANCEL_WINDOW_DAYS
+        )
         stmt = select(func.count(Order.id)).where(
             and_(
                 Order.user_id == user_id,
@@ -221,9 +225,7 @@ class OrderService:
         if order.user_id != user_id:
             raise ValueError("Order does not belong to this user")
         if order.status not in self.CUSTOMER_CANCELLABLE_STATES:
-            raise ValueError(
-                f"Cannot cancel order in '{order.status.value}' state."
-            )
+            raise ValueError(f"Cannot cancel order in '{order.status.value}' state.")
 
         if order.status == OrderStatus.READY:
             count = await self.count_recent_ready_cancellations(db, user_id)
@@ -250,9 +252,7 @@ class OrderService:
         self._validate_staff(order, staff_id)
 
         if order.status not in self.STAFF_CANCELLABLE_STATES:
-            raise ValueError(
-                f"Cannot cancel order in '{order.status.value}' state."
-            )
+            raise ValueError(f"Cannot cancel order in '{order.status.value}' state.")
 
         order.status = OrderStatus.CANCELLED
         order.cancelled_at = datetime.now(timezone.utc)
@@ -422,9 +422,7 @@ class OrderService:
         self._validate_staff(order, staff_id)
 
         if order.status not in self.REJECTABLE_STATES:
-            raise ValueError(
-                f"Cannot reject order in '{order.status.value}' state."
-            )
+            raise ValueError(f"Cannot reject order in '{order.status.value}' state.")
 
         order.status = OrderStatus.REJECTED
         order.rejection_reason = reason

@@ -38,7 +38,7 @@ PHARMACIES = [
         "closes_at": time(22, 0),
         "is_active": True,
     },
-     {
+    {
         "name": "TOJINISO ONA FARM MCHJ",
         "address": "Toshkent vil., Bekobod sh. Turon berk ko'chasi, 1-uy(do'kon)",
         "phone": "+998 90 001-87-77",
@@ -47,35 +47,185 @@ PHARMACIES = [
         "opens_at": time(8, 0),
         "closes_at": time(22, 0),
         "is_active": True,
-    }
+    },
 ]
 
 MEDICINES = [
-    {"name": "Paracetamol 500mg", "name_ru": "Парацетамол 500мг", "name_uz": "Paratsetamol 500mg", "category": "Pain Relief", "requires_prescription": False},
-    {"name": "Ibuprofen 400mg", "name_ru": "Ибупрофен 400мг", "name_uz": "Ibuprofen 400mg", "category": "Pain Relief", "requires_prescription": False},
-    {"name": "Aspirin 100mg", "name_ru": "Аспирин 100мг", "name_uz": "Aspirin 100mg", "category": "Pain Relief", "requires_prescription": False},
-    {"name": "Amoxicillin 500mg", "name_ru": "Амоксициллин 500мг", "name_uz": "Amoksisillin 500mg", "category": "Antibiotics", "requires_prescription": True},
-    {"name": "Azithromycin 250mg", "name_ru": "Азитромицин 250мг", "name_uz": "Azitromitsin 250mg", "category": "Antibiotics", "requires_prescription": True},
-    {"name": "Ciprofloxacin 500mg", "name_ru": "Ципрофлоксацин 500мг", "name_uz": "Siprofloksatsin 500mg", "category": "Antibiotics", "requires_prescription": True},
-    {"name": "Cetirizine 10mg", "name_ru": "Цетиризин 10мг", "name_uz": "Setirizin 10mg", "category": "Allergy", "requires_prescription": False},
-    {"name": "Loratadine 10mg", "name_ru": "Лоратадин 10мг", "name_uz": "Loratadin 10mg", "category": "Allergy", "requires_prescription": False},
-    {"name": "Omeprazole 20mg", "name_ru": "Омепразол 20мг", "name_uz": "Omeprazol 20mg", "category": "Digestive", "requires_prescription": False},
-    {"name": "Ranitidine 150mg", "name_ru": "Ранитидин 150мг", "name_uz": "Ranitidin 150mg", "category": "Digestive", "requires_prescription": False},
-    {"name": "Metformin 500mg", "name_ru": "Метформин 500мг", "name_uz": "Metformin 500mg", "category": "Diabetes", "requires_prescription": True},
-    {"name": "Atorvastatin 20mg", "name_ru": "Аторвастатин 20мг", "name_uz": "Atorvastatin 20mg", "category": "Cardiovascular", "requires_prescription": True},
-    {"name": "Amlodipine 5mg", "name_ru": "Амлодипин 5мг", "name_uz": "Amlodipin 5mg", "category": "Cardiovascular", "requires_prescription": True},
-    {"name": "Lisinopril 10mg", "name_ru": "Лизиноприл 10мг", "name_uz": "Lizinopril 10mg", "category": "Cardiovascular", "requires_prescription": True},
-    {"name": "Salbutamol Inhaler", "name_ru": "Сальбутамол ингалятор", "name_uz": "Salbutamol ingalyator", "category": "Respiratory", "requires_prescription": True},
-    {"name": "Dexamethasone 4mg", "name_ru": "Дексаметазон 4мг", "name_uz": "Deksametazon 4mg", "category": "Anti-inflammatory", "requires_prescription": True},
-    {"name": "Vitamin C 500mg", "name_ru": "Витамин С 500мг", "name_uz": "Vitamin C 500mg", "category": "Vitamins", "requires_prescription": False},
-    {"name": "Vitamin D3 1000IU", "name_ru": "Витамин Д3 1000МЕ", "name_uz": "Vitamin D3 1000IU", "category": "Vitamins", "requires_prescription": False},
-    {"name": "Iron Supplement 325mg", "name_ru": "Железо 325мг", "name_uz": "Temir 325mg", "category": "Vitamins", "requires_prescription": False},
-    {"name": "Activated Charcoal", "name_ru": "Активированный уголь", "name_uz": "Faollashtirilgan ko'mir", "category": "Digestive", "requires_prescription": False},
-    {"name": "No-Spa (Drotaverine) 40mg", "name_ru": "Но-Шпа (Дротаверин) 40мг", "name_uz": "No-Shpa (Drotaverin) 40mg", "category": "Pain Relief", "requires_prescription": False},
-    {"name": "Nurofen 200mg", "name_ru": "Нурофен 200мг", "name_uz": "Nurofen 200mg", "category": "Pain Relief", "requires_prescription": False},
-    {"name": "Smecta", "name_ru": "Смекта", "name_uz": "Smekta", "category": "Digestive", "requires_prescription": False},
-    {"name": "Mezim Forte", "name_ru": "Мезим Форте", "name_uz": "Mezim Forte", "category": "Digestive", "requires_prescription": False},
-    {"name": "Furazolidone 50mg", "name_ru": "Фуразолидон 50мг", "name_uz": "Furazolidon 50mg", "category": "Antibiotics", "requires_prescription": True},
+    {
+        "name": "Paracetamol 500mg",
+        "name_ru": "Парацетамол 500мг",
+        "name_uz": "Paratsetamol 500mg",
+        "category": "Pain Relief",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Ibuprofen 400mg",
+        "name_ru": "Ибупрофен 400мг",
+        "name_uz": "Ibuprofen 400mg",
+        "category": "Pain Relief",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Aspirin 100mg",
+        "name_ru": "Аспирин 100мг",
+        "name_uz": "Aspirin 100mg",
+        "category": "Pain Relief",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Amoxicillin 500mg",
+        "name_ru": "Амоксициллин 500мг",
+        "name_uz": "Amoksisillin 500mg",
+        "category": "Antibiotics",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Azithromycin 250mg",
+        "name_ru": "Азитромицин 250мг",
+        "name_uz": "Azitromitsin 250mg",
+        "category": "Antibiotics",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Ciprofloxacin 500mg",
+        "name_ru": "Ципрофлоксацин 500мг",
+        "name_uz": "Siprofloksatsin 500mg",
+        "category": "Antibiotics",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Cetirizine 10mg",
+        "name_ru": "Цетиризин 10мг",
+        "name_uz": "Setirizin 10mg",
+        "category": "Allergy",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Loratadine 10mg",
+        "name_ru": "Лоратадин 10мг",
+        "name_uz": "Loratadin 10mg",
+        "category": "Allergy",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Omeprazole 20mg",
+        "name_ru": "Омепразол 20мг",
+        "name_uz": "Omeprazol 20mg",
+        "category": "Digestive",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Ranitidine 150mg",
+        "name_ru": "Ранитидин 150мг",
+        "name_uz": "Ranitidin 150mg",
+        "category": "Digestive",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Metformin 500mg",
+        "name_ru": "Метформин 500мг",
+        "name_uz": "Metformin 500mg",
+        "category": "Diabetes",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Atorvastatin 20mg",
+        "name_ru": "Аторвастатин 20мг",
+        "name_uz": "Atorvastatin 20mg",
+        "category": "Cardiovascular",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Amlodipine 5mg",
+        "name_ru": "Амлодипин 5мг",
+        "name_uz": "Amlodipin 5mg",
+        "category": "Cardiovascular",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Lisinopril 10mg",
+        "name_ru": "Лизиноприл 10мг",
+        "name_uz": "Lizinopril 10mg",
+        "category": "Cardiovascular",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Salbutamol Inhaler",
+        "name_ru": "Сальбутамол ингалятор",
+        "name_uz": "Salbutamol ingalyator",
+        "category": "Respiratory",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Dexamethasone 4mg",
+        "name_ru": "Дексаметазон 4мг",
+        "name_uz": "Deksametazon 4mg",
+        "category": "Anti-inflammatory",
+        "requires_prescription": True,
+    },
+    {
+        "name": "Vitamin C 500mg",
+        "name_ru": "Витамин С 500мг",
+        "name_uz": "Vitamin C 500mg",
+        "category": "Vitamins",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Vitamin D3 1000IU",
+        "name_ru": "Витамин Д3 1000МЕ",
+        "name_uz": "Vitamin D3 1000IU",
+        "category": "Vitamins",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Iron Supplement 325mg",
+        "name_ru": "Железо 325мг",
+        "name_uz": "Temir 325mg",
+        "category": "Vitamins",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Activated Charcoal",
+        "name_ru": "Активированный уголь",
+        "name_uz": "Faollashtirilgan ko'mir",
+        "category": "Digestive",
+        "requires_prescription": False,
+    },
+    {
+        "name": "No-Spa (Drotaverine) 40mg",
+        "name_ru": "Но-Шпа (Дротаверин) 40мг",
+        "name_uz": "No-Shpa (Drotaverin) 40mg",
+        "category": "Pain Relief",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Nurofen 200mg",
+        "name_ru": "Нурофен 200мг",
+        "name_uz": "Nurofen 200mg",
+        "category": "Pain Relief",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Smecta",
+        "name_ru": "Смекта",
+        "name_uz": "Smekta",
+        "category": "Digestive",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Mezim Forte",
+        "name_ru": "Мезим Форте",
+        "name_uz": "Mezim Forte",
+        "category": "Digestive",
+        "requires_prescription": False,
+    },
+    {
+        "name": "Furazolidone 50mg",
+        "name_ru": "Фуразолидон 50мг",
+        "name_uz": "Furazolidon 50mg",
+        "category": "Antibiotics",
+        "requires_prescription": True,
+    },
 ]
 
 
@@ -92,7 +242,11 @@ async def seed_pharmacies() -> list[Pharmacy]:
             )
             existing = result.scalar_one_or_none()
             if existing:
-                logger.info("Pharmacy '%s' at '%s' already exists, skipping", data["name"], data["address"])
+                logger.info(
+                    "Pharmacy '%s' at '%s' already exists, skipping",
+                    data["name"],
+                    data["address"],
+                )
                 created.append(existing)
                 continue
 
@@ -121,7 +275,14 @@ async def seed_medicines(pharmacies: list[Pharmacy]) -> None:
                 logger.info("Medicine '%s' already exists, skipping", data["name"])
                 continue
 
-            med = Medicine(**data)
+            from app.models.medicine import normalize_medicine_name
+
+            med = Medicine(
+                **data,
+                normalized_name=normalize_medicine_name(
+                    data.get("name_ru") or data.get("name", "")
+                ),
+            )
             session.add(med)
             await session.flush()
 
@@ -188,7 +349,9 @@ async def seed_staff(pharmacies: list[Pharmacy]) -> None:
                 )
                 session.add(user)
                 await session.flush()
-                logger.info("Created user: %s (%s)", account["first_name"], account["phone"])
+                logger.info(
+                    "Created user: %s (%s)", account["first_name"], account["phone"]
+                )
             else:
                 logger.info("User '%s' already exists, skipping", account["phone"])
 
@@ -209,7 +372,11 @@ async def seed_staff(pharmacies: list[Pharmacy]) -> None:
                         is_active=True,
                     )
                     session.add(staff)
-                    logger.info("Created staff: %s -> %s", account["first_name"], account["pharmacy_name"])
+                    logger.info(
+                        "Created staff: %s -> %s",
+                        account["first_name"],
+                        account["pharmacy_name"],
+                    )
             else:
                 logger.info("Staff for '%s' already exists, skipping", account["phone"])
 

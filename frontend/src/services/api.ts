@@ -1,170 +1,173 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance } from "axios";
 
 // ---------------------------------------------------------------------------
 // Types (mirroring the OpenAPI schemas)
 // ---------------------------------------------------------------------------
 
 export interface User {
-  id: string;
-  telegram_user_id: number;
-  first_name: string;
-  last_name: string | null;
-  phone: string | null;
-  language_code: string;
+	id: string;
+	telegram_user_id: number;
+	first_name: string;
+	last_name: string | null;
+	phone: string | null;
+	language_code: string;
 }
 
 export interface Pharmacy {
-  id: string;
-  name: string;
-  address: string;
-  phone: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  opens_at: string;
-  closes_at: string;
-  is_open: boolean;
-  is_active: boolean;
+	id: string;
+	name: string;
+	address: string;
+	phone: string | null;
+	latitude: number | null;
+	longitude: number | null;
+	opens_at: string;
+	closes_at: string;
+	is_open: boolean;
+	is_active: boolean;
 }
 
 export interface Medicine {
-  id: string;
-  name: string;
-  name_ru: string | null;
-  name_uz: string | null;
-  description: string | null;
-  category: string | null;
-  manufacturer: string | null;
-  requires_prescription: boolean;
+	id: string;
+	name: string;
+	name_ru: string | null;
+	name_uz: string | null;
+	description: string | null;
+	category: string | null;
+	manufacturer: string | null;
+	requires_prescription: boolean;
 }
 
 export interface MedicineAvailabilityEntry {
-  pharmacy_id: string;
-  pharmacy_name: string;
-  is_available: boolean;
-  price: number | null;
-  quantity: number | null;
-  expiry_date: string | null;
+	pharmacy_id: string;
+	pharmacy_name: string;
+	is_available: boolean;
+	price: number | null;
+	quantity: number | null;
+	expiry_date: string | null;
 }
 
 export interface MedicineWithAvailability extends Medicine {
-  availability: MedicineAvailabilityEntry[];
+	availability: MedicineAvailabilityEntry[];
 }
 
 export type OrderStatus =
-  | 'created'
-  | 'ready'
-  | 'completed'
-  | 'cancelled'
-  | 'rejected';
+	| "created"
+	| "ready"
+	| "completed"
+	| "cancelled"
+	| "rejected";
 
-export type OrderType = 'medicine_search' | 'prescription';
+export type OrderType = "medicine_search" | "prescription";
 
 export interface Order {
-  id: string;
-  order_number: string;
-  status: OrderStatus;
-  order_type: OrderType;
-  pharmacy_id: string;
-  pharmacy_name: string;
-  total_price: number | null;
-  currency: string;
-  notes: string | null;
-  rejection_reason: string | null;
-  can_cancel: boolean;
-  cancel_reason: string | null;
-  created_at: string;
-  ready_at: string | null;
-  reply_image_url: string | null;
+	id: string;
+	order_number: string;
+	status: OrderStatus;
+	order_type: OrderType;
+	pharmacy_id: string;
+	pharmacy_name: string;
+	total_price: number | null;
+	currency: string;
+	notes: string | null;
+	rejection_reason: string | null;
+	can_cancel: boolean;
+	cancel_reason: string | null;
+	created_at: string;
+	ready_at: string | null;
+	reply_image_url: string | null;
 }
 
 export interface OrderItem {
-  id: string;
-  medicine_id?: string | null;
-  medicine_name: string;
-  quantity: number;
-  unit_price: number | null;
+	id: string;
+	medicine_id?: string | null;
+	medicine_name: string;
+	quantity: number;
+	unit_price: number | null;
 }
 
 export interface Prescription {
-  id: string;
-  file_name: string;
-  file_size: number;
-  mime_type: string;
-  uploaded_at: string;
-  download_url: string;
+	id: string;
+	file_name: string;
+	file_size: number;
+	mime_type: string;
+	uploaded_at: string;
+	download_url: string;
 }
 
 export interface OrderDetail extends Order {
-  items: OrderItem[];
-  prescriptions: Prescription[];
-  user: User;
+	items: OrderItem[];
+	prescriptions: Prescription[];
+	user: User;
 }
 
 export interface StaffOrder {
-  id: string;
-  order_number: string;
-  status: OrderStatus;
-  order_type: OrderType;
-  total_price: number | null;
-  currency: string;
-  notes: string | null;
-  rejection_reason: string | null;
-  staff_id: string | null;
-  user_first_name: string;
-  user_phone: string | null;
-  user_telegram_username: string | null;
-  user_telegram_id: number | null;
-  created_at: string;
-  ready_at: string | null;
-  reply_image_url: string | null;
-  items: OrderItem[];
-  prescriptions: Prescription[];
+	id: string;
+	order_number: string;
+	status: OrderStatus;
+	order_type: OrderType;
+	total_price: number | null;
+	currency: string;
+	notes: string | null;
+	rejection_reason: string | null;
+	staff_id: string | null;
+	user_first_name: string;
+	user_phone: string | null;
+	user_telegram_username: string | null;
+	user_telegram_id: number | null;
+	contact_phone: string | null;
+	created_at: string;
+	ready_at: string | null;
+	reply_image_url: string | null;
+	items: OrderItem[];
+	prescriptions: Prescription[];
 }
 
 export interface CreateOrderItem {
-  medicine_id?: string;
-  medicine_name: string;
-  quantity: number;
-  unit_price?: number | null;
+	medicine_id?: string;
+	medicine_name: string;
+	quantity: number;
+	unit_price?: number | null;
 }
 
 export interface CreateOrderRequest {
-  pharmacy_id: string;
-  order_type: OrderType;
-  items?: CreateOrderItem[];
-  notes?: string;
+	pharmacy_id: string;
+	order_type: OrderType;
+	items?: CreateOrderItem[];
+	notes?: string;
+	contact_phone?: string;
 }
 
 export interface UpdateOrderItem {
-  medicine_id?: string | null;
-  medicine_name: string;
-  quantity: number;
-  unit_price?: number | null;
+	medicine_id?: string | null;
+	medicine_name: string;
+	quantity: number;
+	unit_price?: number | null;
 }
 
 export interface UpdateOrderRequest {
-  items: UpdateOrderItem[];
-  total_price?: number | null;
+	items: UpdateOrderItem[];
+	total_price?: number | null;
 }
 
 export interface CreateMedicineRequest {
-  name: string;
-  name_ru?: string;
-  name_uz?: string;
-  description?: string;
-  category?: string;
-  requires_prescription?: boolean;
-  is_available?: boolean;
+	name: string;
+	name_ru?: string;
+	name_uz?: string;
+	description?: string;
+	category?: string;
+	requires_prescription?: boolean;
+	is_available?: boolean;
 }
 
 export interface AuthResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  user_id: string;
-  telegram_user_id: number | null;
-  is_staff: boolean;
-  first_name: string | null;
+	access_token: string;
+	token_type: string;
+	expires_in: number;
+	user_id: string;
+	telegram_user_id: number | null;
+	is_staff: boolean;
+	first_name: string | null;
+	phone: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,27 +175,27 @@ export interface AuthResponse {
 // ---------------------------------------------------------------------------
 
 const apiClient: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+	baseURL: "/api/v1",
+	headers: {
+		"Content-Type": "application/json",
+	},
 });
 
 // Request interceptor — prefer stored JWT, fall back to Telegram Mini App initData
 apiClient.interceptors.request.use((config) => {
-  const staffToken = localStorage.getItem('staff_token');
-  const webToken = localStorage.getItem('web_token');
-  if (staffToken) {
-    config.headers['Authorization'] = `Bearer ${staffToken}`;
-  } else if (webToken) {
-    config.headers['Authorization'] = `Bearer ${webToken}`;
-  } else {
-    const initDataRaw = window.Telegram?.WebApp?.initData;
-    if (initDataRaw) {
-      config.headers['Authorization'] = `tma ${initDataRaw}`;
-    }
-  }
-  return config;
+	const staffToken = localStorage.getItem("staff_token");
+	const webToken = localStorage.getItem("web_token");
+	if (staffToken) {
+		config.headers["Authorization"] = `Bearer ${staffToken}`;
+	} else if (webToken) {
+		config.headers["Authorization"] = `Bearer ${webToken}`;
+	} else {
+		const initDataRaw = window.Telegram?.WebApp?.initData;
+		if (initDataRaw) {
+			config.headers["Authorization"] = `tma ${initDataRaw}`;
+		}
+	}
+	return config;
 });
 
 // ---------------------------------------------------------------------------
@@ -200,35 +203,42 @@ apiClient.interceptors.request.use((config) => {
 // ---------------------------------------------------------------------------
 
 export async function initAuth(): Promise<AuthResponse> {
-  const initData = window.Telegram?.WebApp?.initData ?? '';
-  const { data } = await apiClient.post<AuthResponse>('/auth/init', {
-    init_data: initData,
-  });
-  return data;
+	const initData = window.Telegram?.WebApp?.initData ?? "";
+	const { data } = await apiClient.post<AuthResponse>("/auth/init", {
+		init_data: initData,
+	});
+	return data;
 }
 
 export async function tokenLogin(token: string): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>('/auth/token-login', {
-    token,
-  });
-  return data;
+	const { data } = await apiClient.post<AuthResponse>("/auth/token-login", {
+		token,
+	});
+	return data;
 }
 
-export async function webLogin(phone: string, password: string): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>('/auth/web/login', {
-    phone,
-    password,
-  });
-  return data;
+export async function webLogin(
+	phone: string,
+	password: string,
+): Promise<AuthResponse> {
+	const { data } = await apiClient.post<AuthResponse>("/auth/web/login", {
+		phone,
+		password,
+	});
+	return data;
 }
 
-export async function webRegister(phone: string, password: string, first_name: string): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>('/auth/web/register', {
-    phone,
-    password,
-    first_name,
-  });
-  return data;
+export async function webRegister(
+	phone: string,
+	password: string,
+	first_name: string,
+): Promise<AuthResponse> {
+	const { data } = await apiClient.post<AuthResponse>("/auth/web/register", {
+		phone,
+		password,
+		first_name,
+	});
+	return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,8 +246,8 @@ export async function webRegister(phone: string, password: string, first_name: s
 // ---------------------------------------------------------------------------
 
 export async function getPharmacies(): Promise<Pharmacy[]> {
-  const { data } = await apiClient.get<Pharmacy[]>('/pharmacies');
-  return data;
+	const { data } = await apiClient.get<Pharmacy[]>("/pharmacies");
+	return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -245,30 +255,30 @@ export async function getPharmacies(): Promise<Pharmacy[]> {
 // ---------------------------------------------------------------------------
 
 export interface SearchMedicinesParams {
-  q: string;
-  pharmacy_id?: string;
-  limit?: number;
-  offset?: number;
+	q: string;
+	pharmacy_id?: string;
+	limit?: number;
+	offset?: number;
 }
 
 export async function getPopularMedicines(
-  pharmacyId?: string,
+	pharmacyId?: string,
 ): Promise<MedicineWithAvailability[]> {
-  const { data } = await apiClient.get<MedicineWithAvailability[]>(
-    '/medicines/popular',
-    { params: pharmacyId ? { pharmacy_id: pharmacyId } : {} },
-  );
-  return data;
+	const { data } = await apiClient.get<MedicineWithAvailability[]>(
+		"/medicines/popular",
+		{ params: pharmacyId ? { pharmacy_id: pharmacyId } : {} },
+	);
+	return data;
 }
 
 export async function searchMedicines(
-  params: SearchMedicinesParams,
+	params: SearchMedicinesParams,
 ): Promise<{ results: MedicineWithAvailability[]; total: number }> {
-  const { data } = await apiClient.get<{
-    results: MedicineWithAvailability[];
-    total: number;
-  }>('/medicines/search', { params });
-  return data;
+	const { data } = await apiClient.get<{
+		results: MedicineWithAvailability[];
+		total: number;
+	}>("/medicines/search", { params });
+	return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -276,49 +286,49 @@ export async function searchMedicines(
 // ---------------------------------------------------------------------------
 
 export async function createOrder(payload: CreateOrderRequest): Promise<Order> {
-  const { data } = await apiClient.post<Order>('/orders', payload);
-  return data;
+	const { data } = await apiClient.post<Order>("/orders", payload);
+	return data;
 }
 
 export async function getOrder(id: string): Promise<OrderDetail> {
-  const { data } = await apiClient.get<OrderDetail>(`/orders/${id}`);
-  return data;
+	const { data } = await apiClient.get<OrderDetail>(`/orders/${id}`);
+	return data;
 }
 
 export async function cancelOrder(id: string): Promise<Order> {
-  const { data } = await apiClient.post<Order>(`/orders/${id}/cancel`);
-  return data;
+	const { data } = await apiClient.post<Order>(`/orders/${id}/cancel`);
+	return data;
 }
 
 export async function getOrders(params?: {
-  status?: OrderStatus;
-  limit?: number;
-  offset?: number;
+	status?: OrderStatus;
+	limit?: number;
+	offset?: number;
 }): Promise<{ orders: Order[]; total: number }> {
-  const { data } = await apiClient.get<{ orders: Order[]; total: number }>(
-    '/orders',
-    { params },
-  );
-  return data;
+	const { data } = await apiClient.get<{ orders: Order[]; total: number }>(
+		"/orders",
+		{ params },
+	);
+	return data;
 }
 
 export async function reorder(id: string): Promise<Order> {
-  const { data } = await apiClient.post<Order>(`/orders/${id}/reorder`);
-  return data;
+	const { data } = await apiClient.post<Order>(`/orders/${id}/reorder`);
+	return data;
 }
 
 export async function uploadPrescription(
-  orderId: string,
-  file: File,
+	orderId: string,
+	file: File,
 ): Promise<Prescription> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const { data } = await apiClient.post<Prescription>(
-    `/orders/${orderId}/prescription`,
-    formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
-  );
-  return data;
+	const formData = new FormData();
+	formData.append("file", file);
+	const { data } = await apiClient.post<Prescription>(
+		`/orders/${orderId}/prescription`,
+		formData,
+		{ headers: { "Content-Type": "multipart/form-data" } },
+	);
+	return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,118 +336,141 @@ export async function uploadPrescription(
 // ---------------------------------------------------------------------------
 
 export async function getStaffOrders(params?: {
-  status?: OrderStatus;
-  limit?: number;
-  offset?: number;
+	status?: OrderStatus;
+	limit?: number;
+	offset?: number;
 }): Promise<{ orders: StaffOrder[]; total: number }> {
-  const { data } = await apiClient.get<{ orders: StaffOrder[]; total: number }>(
-    '/staff/orders',
-    { params },
-  );
-  return data;
+	const { data } = await apiClient.get<{ orders: StaffOrder[]; total: number }>(
+		"/staff/orders",
+		{ params },
+	);
+	return data;
 }
 
 export async function getStaffOrder(id: string): Promise<StaffOrder> {
-  const { data } = await apiClient.get<StaffOrder>(`/staff/orders/${id}`);
-  return data;
+	const { data } = await apiClient.get<StaffOrder>(`/staff/orders/${id}`);
+	return data;
 }
 
 export async function updateStaffOrder(
-  id: string,
-  payload: UpdateOrderRequest,
+	id: string,
+	payload: UpdateOrderRequest,
 ): Promise<StaffOrder> {
-  const { data } = await apiClient.post<StaffOrder>(
-    `/staff/orders/${id}/update`,
-    payload,
-  );
-  return data;
+	const { data } = await apiClient.post<StaffOrder>(
+		`/staff/orders/${id}/update`,
+		payload,
+	);
+	return data;
 }
 
 export async function confirmStaffOrder(id: string): Promise<StaffOrder> {
-  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/confirm`);
-  return data;
+	const { data } = await apiClient.post<StaffOrder>(
+		`/staff/orders/${id}/confirm`,
+	);
+	return data;
 }
 
 export async function completeOrder(id: string): Promise<StaffOrder> {
-  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/complete`);
-  return data;
+	const { data } = await apiClient.post<StaffOrder>(
+		`/staff/orders/${id}/complete`,
+	);
+	return data;
 }
 
-export async function rejectOrder(id: string, reason: string): Promise<StaffOrder> {
-  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/reject`, {
-    reason,
-  });
-  return data;
+export async function rejectOrder(
+	id: string,
+	reason: string,
+): Promise<StaffOrder> {
+	const { data } = await apiClient.post<StaffOrder>(
+		`/staff/orders/${id}/reject`,
+		{
+			reason,
+		},
+	);
+	return data;
 }
 
 export async function staffCancelOrder(id: string): Promise<StaffOrder> {
-  const { data } = await apiClient.post<StaffOrder>(`/staff/orders/${id}/cancel`);
-  return data;
+	const { data } = await apiClient.post<StaffOrder>(
+		`/staff/orders/${id}/cancel`,
+	);
+	return data;
 }
 
 export async function uploadReplyImage(
-  orderId: string,
-  file: File,
+	orderId: string,
+	file: File,
 ): Promise<StaffOrder> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const { data } = await apiClient.post<StaffOrder>(
-    `/staff/orders/${orderId}/reply-image`,
-    formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
-  );
-  return data;
+	const formData = new FormData();
+	formData.append("file", file);
+	const { data } = await apiClient.post<StaffOrder>(
+		`/staff/orders/${orderId}/reply-image`,
+		formData,
+		{ headers: { "Content-Type": "multipart/form-data" } },
+	);
+	return data;
 }
 
 export function getReplyImageUrl(orderId: string): string {
-  return `/api/v1/orders/${orderId}/reply-image`;
+	return `/api/v1/orders/${orderId}/reply-image`;
 }
 
 export async function getMedicines(params?: {
-  limit?: number;
-  offset?: number;
+	limit?: number;
+	offset?: number;
 }): Promise<{ medicines: MedicineWithAvailability[]; total: number }> {
-  const { data } = await apiClient.get<{
-    medicines: MedicineWithAvailability[];
-    total: number;
-  }>('/staff/medicines', { params });
-  return data;
+	const { data } = await apiClient.get<{
+		medicines: MedicineWithAvailability[];
+		total: number;
+	}>("/staff/medicines", { params });
+	return data;
 }
 
 export async function addMedicine(
-  payload: CreateMedicineRequest,
+	payload: CreateMedicineRequest,
 ): Promise<Medicine> {
-  const { data } = await apiClient.post<Medicine>('/staff/medicines', payload);
-  return data;
+	const { data } = await apiClient.post<Medicine>("/staff/medicines", payload);
+	return data;
 }
 
 export async function updateAvailability(
-  medicineId: string,
-  available: boolean,
+	medicineId: string,
+	available: boolean,
 ): Promise<void> {
-  await apiClient.put(`/staff/medicines/${medicineId}/availability`, {
-    is_available: available,
-  });
+	await apiClient.put(`/staff/medicines/${medicineId}/availability`, {
+		is_available: available,
+	});
 }
 
 export interface ExcelImportResult {
-  new: number;
-  updated: number;
-  skipped: number;
-  errors: number;
+	new: number;
+	updated: number;
+	skipped: number;
+	errors: number;
 }
 
 export async function uploadMedicinesExcel(
-  file: File,
+	file: File,
 ): Promise<ExcelImportResult> {
-  const form = new FormData();
-  form.append('file', file);
-  const { data } = await apiClient.post<ExcelImportResult>(
-    '/staff/medicines/import-excel',
-    form,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
-  );
-  return data;
+	const form = new FormData();
+	form.append("file", file);
+	const { data } = await apiClient.post<ExcelImportResult>(
+		"/staff/medicines/import-excel",
+		form,
+		{ headers: { "Content-Type": "multipart/form-data" } },
+	);
+	return data;
+}
+
+// ---------------------------------------------------------------------------
+// User profile
+// ---------------------------------------------------------------------------
+
+export async function updateMyPhone(phone: string): Promise<{ phone: string }> {
+	const { data } = await apiClient.patch<{ phone: string }>("/users/me/phone", {
+		phone,
+	});
+	return data;
 }
 
 export default apiClient;

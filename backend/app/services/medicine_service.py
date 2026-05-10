@@ -9,7 +9,7 @@ from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.medicine import Medicine, MedicineAvailability
+from app.models.medicine import Medicine, MedicineAvailability, normalize_medicine_name
 from app.models.pharmacy import Pharmacy
 
 # ---------------------------------------------------------------------------
@@ -18,33 +18,88 @@ from app.models.pharmacy import Pharmacy
 
 # Multi-char mappings must come first so "sh" is matched before "s"+"h"
 _LAT_TO_CYR_MULTI = [
-    ("shch", "щ"), ("sch", "щ"),
-    ("sh", "ш"), ("ch", "ч"), ("ts", "ц"), ("zh", "ж"),
-    ("ya", "я"), ("yu", "ю"), ("yo", "ё"),
+    ("shch", "щ"),
+    ("sch", "щ"),
+    ("sh", "ш"),
+    ("ch", "ч"),
+    ("ts", "ц"),
+    ("zh", "ж"),
+    ("ya", "я"),
+    ("yu", "ю"),
+    ("yo", "ё"),
 ]
 _LAT_TO_CYR_SINGLE = {
-    "a": "а", "b": "б", "v": "в", "g": "г", "d": "д", "e": "е",
-    "z": "з", "i": "и", "y": "й", "k": "к", "l": "л", "m": "м",
-    "n": "н", "o": "о", "p": "п", "r": "р", "s": "с", "t": "т",
-    "u": "у", "f": "ф", "h": "х", "c": "к", "w": "в", "x": "кс",
+    "a": "а",
+    "b": "б",
+    "v": "в",
+    "g": "г",
+    "d": "д",
+    "e": "е",
+    "z": "з",
+    "i": "и",
+    "y": "й",
+    "k": "к",
+    "l": "л",
+    "m": "м",
+    "n": "н",
+    "o": "о",
+    "p": "п",
+    "r": "р",
+    "s": "с",
+    "t": "т",
+    "u": "у",
+    "f": "ф",
+    "h": "х",
+    "c": "к",
+    "w": "в",
+    "x": "кс",
 }
 
 _CYR_TO_LAT_MULTI = [
-    ("щ", "shch"), ("ш", "sh"), ("ч", "ch"), ("ц", "ts"), ("ж", "zh"),
-    ("я", "ya"), ("ю", "yu"), ("ё", "yo"),
+    ("щ", "shch"),
+    ("ш", "sh"),
+    ("ч", "ch"),
+    ("ц", "ts"),
+    ("ж", "zh"),
+    ("я", "ya"),
+    ("ю", "yu"),
+    ("ё", "yo"),
 ]
 _CYR_TO_LAT_SINGLE = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e",
-    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
-    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
-    "у": "u", "ф": "f", "х": "h", "ъ": "", "ь": "", "э": "e", "ы": "y",
+    "а": "a",
+    "б": "b",
+    "в": "v",
+    "г": "g",
+    "д": "d",
+    "е": "e",
+    "з": "z",
+    "и": "i",
+    "й": "y",
+    "к": "k",
+    "л": "l",
+    "м": "m",
+    "н": "n",
+    "о": "o",
+    "п": "p",
+    "р": "r",
+    "с": "s",
+    "т": "t",
+    "у": "u",
+    "ф": "f",
+    "х": "h",
+    "ъ": "",
+    "ь": "",
+    "э": "e",
+    "ы": "y",
 }
 
 _HAS_CYRILLIC = re.compile(r"[а-яёА-ЯЁ]")
 _HAS_LATIN = re.compile(r"[a-zA-Z]")
 
 
-def _transliterate(text: str, multi: list[tuple[str, str]], single: dict[str, str]) -> str:
+def _transliterate(
+    text: str, multi: list[tuple[str, str]], single: dict[str, str]
+) -> str:
     result: list[str] = []
     lower = text.lower()
     i = 0
@@ -83,11 +138,13 @@ def _build_search_filter(query: str):
 
     conditions = []
     for pat in patterns:
-        conditions.extend([
-            Medicine.name.ilike(pat),
-            Medicine.name_ru.ilike(pat),
-            Medicine.name_uz.ilike(pat),
-        ])
+        conditions.extend(
+            [
+                Medicine.name.ilike(pat),
+                Medicine.name_ru.ilike(pat),
+                Medicine.name_uz.ilike(pat),
+            ]
+        )
     return or_(*conditions)
 
 
@@ -170,9 +227,8 @@ class MedicineService:
         medicine_id: UUID,
     ) -> list[MedicineAvailability]:
         """Get availability for a specific medicine across all pharmacies."""
-        stmt = (
-            select(MedicineAvailability)
-            .where(MedicineAvailability.medicine_id == medicine_id)
+        stmt = select(MedicineAvailability).where(
+            MedicineAvailability.medicine_id == medicine_id
         )
         result = await db.execute(stmt)
         return list(result.scalars().all())
@@ -187,11 +243,21 @@ class MedicineService:
         category: str | None = None,
         requires_prescription: bool = False,
     ) -> Medicine:
-        """Add a new medicine."""
+        """Add a new medicine. Returns the existing one if a normalized-name
+        match already exists (idempotent)."""
+        norm = normalize_medicine_name(name_ru or name)
+        existing = await db.execute(
+            select(Medicine).where(Medicine.normalized_name == norm)
+        )
+        already = existing.scalar_one_or_none()
+        if already is not None:
+            return already
+
         medicine = Medicine(
             name=name,
             name_ru=name_ru,
             name_uz=name_uz,
+            normalized_name=norm,
             description=description,
             category=category,
             requires_prescription=requires_prescription,

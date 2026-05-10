@@ -54,13 +54,19 @@ class Order(Base, UUIDMixin, TimestampMixin):
     )
 
     status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus, name="order_status", values_callable=lambda x: [e.value for e in x]),
+        Enum(
+            OrderStatus,
+            name="order_status",
+            values_callable=lambda x: [e.value for e in x],
+        ),
         default=OrderStatus.CREATED,
         nullable=False,
         index=True,
     )
     order_type: Mapped[OrderType] = mapped_column(
-        Enum(OrderType, name="order_type", values_callable=lambda x: [e.value for e in x]),
+        Enum(
+            OrderType, name="order_type", values_callable=lambda x: [e.value for e in x]
+        ),
         nullable=False,
     )
 
@@ -69,22 +75,42 @@ class Order(Base, UUIDMixin, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Per-order contact phone override. When null, fall back to user.phone.
+    contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Staff reply image (screenshot from POS/calculator app)
     reply_image_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Timestamps for state transitions
-    ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ready_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    rejected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     user = relationship("User", back_populates="orders")
     pharmacy = relationship("Pharmacy", back_populates="orders")
     staff_member = relationship("PharmacyStaff", back_populates="orders")
-    items = relationship("OrderItem", back_populates="order", lazy="selectin", cascade="all, delete-orphan")
-    prescriptions = relationship("Prescription", back_populates="order", lazy="selectin")
+    items = relationship(
+        "OrderItem",
+        back_populates="order",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    prescriptions = relationship(
+        "Prescription", back_populates="order", lazy="selectin"
+    )
 
 
 class OrderItem(Base, UUIDMixin, TimestampMixin):
