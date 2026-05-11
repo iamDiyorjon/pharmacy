@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+import PageHeader from "../components/PageHeader";
 import {
 	getOrder,
 	cancelOrder,
@@ -282,15 +283,17 @@ export default function OrderStatus() {
 
 	return (
 		<div style={styles.page}>
-			<header style={{ ...styles.hero, background: statusColor.gradient }}>
-				<div style={styles.heroTop}>
-					<h1 style={styles.heroTitle}>{t("orderStatus.title")}</h1>
+			<PageHeader
+				title={t("orderStatus.title")}
+				background={statusColor.gradient}
+				rightSlot={
 					<span style={styles.heroOrderNum}>#{order.order_number}</span>
-				</div>
+				}
+			>
 				<span style={styles.heroBadge}>
 					{t(`orderStatus.status.${order.status}`)}
 				</span>
-			</header>
+			</PageHeader>
 
 			<div style={styles.stepperWrap}>
 				<StatusStepper status={order.status} />
@@ -598,25 +601,11 @@ const styles: Record<string, React.CSSProperties> = {
 		borderRadius: "50%",
 		animation: "spin 0.8s linear infinite",
 	},
-	hero: {
-		padding: "20px 16px 18px",
-		color: "#fff",
-	},
-	heroTop: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: 10,
-	},
-	heroTitle: {
-		margin: 0,
-		fontSize: 20,
-		fontWeight: 700,
-	},
 	heroOrderNum: {
 		fontSize: 13,
 		fontWeight: 600,
 		opacity: 0.85,
+		color: "#fff",
 	},
 	heroBadge: {
 		display: "inline-block",
@@ -627,6 +616,8 @@ const styles: Record<string, React.CSSProperties> = {
 		background: "rgba(255,255,255,0.2)",
 		backdropFilter: "blur(4px)",
 		letterSpacing: 0.3,
+		color: "#fff",
+		alignSelf: "flex-start",
 	},
 	stepperWrap: { padding: "16px 16px 4px" },
 	messageCard: {

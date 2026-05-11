@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import LanguageToggle from "../components/LanguageToggle";
+import PageHeader from "../components/PageHeader";
 import { updateMyPhone } from "../services/api";
 
 const PHONE_RE = /^\+?\d{9,15}$/;
@@ -81,23 +82,19 @@ export default function Settings() {
 
 	return (
 		<div style={styles.page}>
-			{/* Header with avatar */}
-			<header style={styles.hero}>
-				{tgUser?.photo_url ? (
-					<img src={tgUser.photo_url} alt="" style={styles.avatarImg} />
-				) : (
-					<div style={styles.avatar}>
-						<span style={styles.avatarText}>{initials.toUpperCase()}</span>
-					</div>
-				)}
-				<h1 style={styles.heroTitle}>
-					{displayName}
-					{tgUser?.is_premium && <span style={styles.premiumBadge}> ⭐</span>}
-				</h1>
-				{tgUser?.username && (
-					<span style={styles.heroUsername}>@{tgUser.username}</span>
-				)}
-			</header>
+			<PageHeader
+				title={tgUser?.is_premium ? `${displayName} ⭐` : displayName}
+				subtitle={tgUser?.username ? `@${tgUser.username}` : undefined}
+				leftSlot={
+					tgUser?.photo_url ? (
+						<img src={tgUser.photo_url} alt="" style={styles.avatarImg} />
+					) : (
+						<div style={styles.avatar}>
+							<span style={styles.avatarText}>{initials.toUpperCase()}</span>
+						</div>
+					)
+				}
+			/>
 
 			<div style={styles.content}>
 				{/* Profile info */}
@@ -222,51 +219,28 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles: Record<string, React.CSSProperties> = {
 	page: { minHeight: "100%" },
-	hero: {
-		padding: "28px 16px 20px",
-		background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-		color: "#fff",
-		display: "flex",
-		flexDirection: "column",
-		alignItems: "center",
-		gap: 12,
-	},
 	avatar: {
-		width: 72,
-		height: 72,
+		width: 44,
+		height: 44,
 		borderRadius: "50%",
 		background: "rgba(255,255,255,0.2)",
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "center",
-		border: "3px solid rgba(255,255,255,0.4)",
+		border: "2px solid rgba(255,255,255,0.4)",
 	},
 	avatarImg: {
-		width: 72,
-		height: 72,
+		width: 44,
+		height: 44,
 		borderRadius: "50%",
 		objectFit: "cover",
-		border: "3px solid rgba(255,255,255,0.4)",
+		border: "2px solid rgba(255,255,255,0.4)",
 	},
 	avatarText: {
-		fontSize: 24,
+		fontSize: 16,
 		fontWeight: 700,
-		letterSpacing: 1,
-	},
-	heroTitle: {
-		margin: 0,
-		fontSize: 20,
-		fontWeight: 700,
-		display: "flex",
-		alignItems: "center",
-	},
-	premiumBadge: {
-		fontSize: 18,
-	},
-	heroUsername: {
-		fontSize: 14,
-		opacity: 0.8,
-		marginTop: -4,
+		letterSpacing: 0.5,
+		color: "#fff",
 	},
 	content: {
 		padding: "12px 16px 0",
