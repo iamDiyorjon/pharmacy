@@ -7,7 +7,7 @@
 | IP | `159.203.168.109` |
 | User | `root` |
 | Project path | `/var/www/pharmacy` |
-| Domain | `https://pharmacy.proeduedge.uz` |
+| Domain | `https://pharmacy.kulliyot.uz` |
 | SSL | Let's Encrypt (auto-managed by Certbot) |
 
 ## Architecture

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+import PageHeader from "../components/PageHeader";
 import {
 	getPharmacies,
 	createOrder,
@@ -109,16 +110,14 @@ export default function Order() {
 
 	return (
 		<div style={styles.page}>
-			{/* Hero */}
-			<header style={styles.hero}>
-				<h1 style={styles.heroTitle}>{t("order.newOrder")}</h1>
+			<PageHeader title={t("order.newOrder")}>
 				{selectedPharmacy && (
 					<div style={styles.pharmacyTag}>
 						<span style={styles.pharmacyIcon}>{"\uD83C\uDFE5"}</span>
 						<span style={styles.pharmacyName}>{selectedPharmacy.name}</span>
 					</div>
 				)}
-			</header>
+			</PageHeader>
 
 			<div style={styles.form}>
 				{/* Pharmacy selector */}

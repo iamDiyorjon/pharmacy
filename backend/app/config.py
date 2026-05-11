@@ -5,9 +5,13 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str
     telegram_webapp_url: str = ""
+    telegram_webhook_url: str = ""
+    telegram_webhook_secret: str = ""
 
     # Database
-    database_url: str = "postgresql+asyncpg://pharmacy:pharmacy@localhost:5432/pharmacy_db"
+    database_url: str = (
+        "postgresql+asyncpg://pharmacy:pharmacy@localhost:5432/pharmacy_db"
+    )
 
     # MinIO / S3
     minio_endpoint: str = "localhost:9000"

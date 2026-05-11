@@ -7,7 +7,7 @@ set -e
 # Usage: bash setup-server.sh
 # ===========================================
 
-DOMAIN="pharmacy.proeduedge.uz"
+DOMAIN="pharmacy.kulliyot.uz"
 APP_DIR="/var/www/pharmacy"
 REPO_URL="https://github.com/iamDiyorjon/pharmacy.git"
 
@@ -55,7 +55,7 @@ echo "Nginx configured for $DOMAIN"
 
 echo "=== 5. SSL Certificate ==="
 if ! certbot certificates 2>/dev/null | grep -q "$DOMAIN"; then
-    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email admin@proeduedge.uz
+    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email admin@kulliyot.uz
     echo "SSL certificate obtained"
 else
     echo "SSL certificate already exists"
