@@ -310,14 +310,7 @@ export default function Order() {
 
 const styles: Record<string, React.CSSProperties> = {
 	page: { minHeight: "100%", paddingBottom: 16 },
-	hero: {
-		padding: "20px 16px 16px",
-		background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-		color: "#fff",
-	},
-	heroTitle: { margin: 0, fontSize: 22, fontWeight: 700 },
 	pharmacyTag: {
-		marginTop: 10,
 		display: "inline-flex",
 		alignItems: "center",
 		gap: 6,
@@ -326,6 +319,8 @@ const styles: Record<string, React.CSSProperties> = {
 		background: "rgba(255,255,255,0.2)",
 		fontSize: 13,
 		fontWeight: 600,
+		color: "#fff",
+		alignSelf: "flex-start",
 	},
 	pharmacyIcon: { fontSize: 14 },
 	pharmacyName: { fontSize: 13 },
