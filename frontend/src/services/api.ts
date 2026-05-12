@@ -170,6 +170,7 @@ export interface AuthResponse {
 	user_id: string;
 	telegram_user_id: number | null;
 	is_staff: boolean;
+	is_admin: boolean;
 	first_name: string | null;
 	phone: string | null;
 }
@@ -238,6 +239,43 @@ export async function webRegister(
 		phone,
 		password,
 		first_name,
+	});
+	return data;
+}
+
+// ---------------------------------------------------------------------------
+// Admin stats
+// ---------------------------------------------------------------------------
+
+export interface FunnelStep {
+	name: string;
+	users: number;
+	events: number;
+}
+
+export interface DailyCount {
+	date: string;
+	new_users: number;
+}
+
+export interface SourceBreakdown {
+	source: string | null;
+	users: number;
+}
+
+export interface AdminStats {
+	days: number;
+	since: string;
+	total_users: number;
+	total_orders: number;
+	funnel: FunnelStep[];
+	new_users_by_day: DailyCount[];
+	top_sources: SourceBreakdown[];
+}
+
+export async function getAdminStats(days: number): Promise<AdminStats> {
+	const { data } = await apiClient.get<AdminStats>("/admin/stats", {
+		params: { days },
 	});
 	return data;
 }

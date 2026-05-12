@@ -110,6 +110,9 @@ const StaffMedicineCatalog = lazy(
 	() => import("./pages/staff/MedicineCatalog"),
 );
 
+// Admin pages
+const AdminStats = lazy(() => import("./pages/admin/Stats"));
+
 // ---------------------------------------------------------------------------
 // Spinner fallback
 // ---------------------------------------------------------------------------
@@ -143,9 +146,25 @@ const staffNavItem: NavItem = {
 	icon: "👨‍⚕️",
 };
 
-function BottomNav({ isStaff }: { isStaff: boolean }) {
+const adminNavItem: NavItem = {
+	to: "/admin",
+	labelKey: "nav.admin",
+	icon: "📊",
+};
+
+function BottomNav({
+	isStaff,
+	isAdmin,
+}: {
+	isStaff: boolean;
+	isAdmin: boolean;
+}) {
 	const { t } = useTranslation();
-	const navItems = isStaff ? [...customerNav, staffNavItem] : customerNav;
+	const navItems = [
+		...customerNav,
+		...(isStaff ? [staffNavItem] : []),
+		...(isAdmin ? [adminNavItem] : []),
+	];
 
 	return (
 		<nav style={styles.bottomNav} aria-label="Bottom navigation">
@@ -178,11 +197,37 @@ export default function App() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [isStaff, setIsStaff] = useState(false);
+	const [isAdmin, setIsAdmin] = useState(
+		localStorage.getItem("isAdmin") === "true",
+	);
 	const [authReady, setAuthReady] = useState(false);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 
 	const isTelegram = !!window.Telegram?.WebApp?.initData;
 	const isStaffRoute = location.pathname.startsWith("/staff");
+	const isAdminRoute = location.pathname.startsWith("/admin");
+
+	function applyAuth(res: {
+		is_staff: boolean;
+		is_admin: boolean;
+		phone: string | null;
+	}) {
+		if (res.phone) localStorage.setItem("user_phone", res.phone);
+		else localStorage.removeItem("user_phone");
+		if (res.is_staff) {
+			setIsStaff(true);
+			localStorage.setItem("isStaff", "true");
+		} else {
+			localStorage.removeItem("isStaff");
+		}
+		if (res.is_admin) {
+			setIsAdmin(true);
+			localStorage.setItem("isAdmin", "true");
+		} else {
+			setIsAdmin(false);
+			localStorage.removeItem("isAdmin");
+		}
+	}
 
 	// Initialize auth on mount — handle web token or Telegram initData
 	useEffect(() => {
@@ -192,12 +237,7 @@ export default function App() {
 			tokenLogin(webToken)
 				.then((res) => {
 					localStorage.setItem("web_token", res.access_token);
-					if (res.phone) localStorage.setItem("user_phone", res.phone);
-					else localStorage.removeItem("user_phone");
-					if (res.is_staff) {
-						setIsStaff(true);
-						localStorage.setItem("isStaff", "true");
-					}
+					applyAuth(res);
 					setIsAuthenticated(true);
 					setAuthReady(true);
 				})
@@ -212,14 +252,7 @@ export default function App() {
 		if (isTelegram) {
 			initAuth()
 				.then((res) => {
-					if (res.phone) localStorage.setItem("user_phone", res.phone);
-					else localStorage.removeItem("user_phone");
-					if (res.is_staff) {
-						setIsStaff(true);
-						localStorage.setItem("isStaff", "true");
-					} else {
-						localStorage.removeItem("isStaff");
-					}
+					applyAuth(res);
 					setIsAuthenticated(true);
 					setAuthReady(true);
 				})
@@ -275,6 +308,24 @@ export default function App() {
 		);
 	}
 
+	// Admin-only routes — gated by is_admin flag from auth response
+	if (isAdminRoute) {
+		if (!isAdmin) {
+			navigate("/", { replace: true });
+			return <PageSpinner />;
+		}
+		return (
+			<Suspense fallback={<PageSpinner />}>
+				<RouteErrorBoundary>
+					<Routes>
+						<Route path="/admin" element={<AdminStats />} />
+						<Route path="/admin/*" element={<AdminStats />} />
+					</Routes>
+				</RouteErrorBoundary>
+			</Suspense>
+		);
+	}
+
 	// Customer layout — mobile 480px + bottom nav
 	return (
 		<div style={styles.appWrapper}>
@@ -294,7 +345,7 @@ export default function App() {
 				</Suspense>
 			</main>
 
-			<BottomNav isStaff={isStaff} />
+			<BottomNav isStaff={isStaff} isAdmin={isAdmin} />
 		</div>
 	);
 }

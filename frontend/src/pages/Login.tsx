@@ -24,7 +24,12 @@ export default function Login() {
 			if (res.is_staff) {
 				localStorage.setItem("isStaff", "true");
 			}
-			navigate("/", { replace: true });
+			if (res.is_admin) {
+				localStorage.setItem("isAdmin", "true");
+			} else {
+				localStorage.removeItem("isAdmin");
+			}
+			navigate(res.is_admin ? "/admin" : "/", { replace: true });
 			window.location.reload();
 		} catch {
 			setError(t("auth.invalidCredentials", "Telefon yoki parol noto'g'ri"));

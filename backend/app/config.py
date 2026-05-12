@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -26,8 +27,30 @@ class Settings(BaseSettings):
 
     # Admin
     admin_telegram_id: int = 0
+    admin_phones: list[str] = []
+
+    @field_validator("admin_phones", mode="before")
+    @classmethod
+    def _split_phones(cls, v):
+        if isinstance(v, str):
+            return [p.strip() for p in v.split(",") if p.strip()]
+        return v
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 settings = Settings()
+
+
+def user_is_admin(user) -> bool:
+    """True if the user is a platform admin via either Telegram ID or phone."""
+    if user is None:
+        return False
+    if (
+        settings.admin_telegram_id
+        and user.telegram_user_id == settings.admin_telegram_id
+    ):
+        return True
+    if user.phone and user.phone in settings.admin_phones:
+        return True
+    return False

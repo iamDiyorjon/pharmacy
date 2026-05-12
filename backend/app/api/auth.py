@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.config import settings, user_is_admin
 from app.db.session import get_db
 from app.models.staff import PharmacyStaff
 from app.models.user import User
@@ -97,6 +97,9 @@ class TokenResponse(BaseModel):
     telegram_user_id: int | None = None
     is_staff: bool = Field(
         default=False, description="Whether user is registered staff"
+    )
+    is_admin: bool = Field(
+        default=False, description="Whether user is a platform admin"
     )
     first_name: str | None = None
     phone: str | None = None
@@ -267,6 +270,7 @@ async def auth_init(
         user_id=str(user.id),
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
+        is_admin=user_is_admin(user),
         first_name=user.first_name,
         phone=user.phone,
     )
@@ -339,6 +343,7 @@ async def token_login(
         user_id=str(user.id),
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
+        is_admin=user_is_admin(user),
         first_name=user.first_name,
         phone=user.phone,
     )
@@ -394,6 +399,7 @@ async def web_login(
         user_id=str(user.id),
         telegram_user_id=user.telegram_user_id,
         is_staff=is_staff,
+        is_admin=user_is_admin(user),
         first_name=user.first_name,
         phone=user.phone,
     )

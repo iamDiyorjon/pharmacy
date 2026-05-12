@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.config import settings
+from app.config import settings, user_is_admin
 from app.db.session import get_db
 from app.models.analytics_event import AnalyticsEvent
 from app.models.order import Order
@@ -35,8 +35,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 async def require_admin(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    """Check that the current user is the admin."""
-    if current_user.telegram_user_id != settings.admin_telegram_id:
+    """Check that the current user is a platform admin."""
+    if not user_is_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",

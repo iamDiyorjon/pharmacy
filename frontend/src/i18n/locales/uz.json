@@ -4,7 +4,8 @@
     "search": "Qidirish",
     "orders": "Buyurtmalar",
     "settings": "Sozlamalar",
-    "staff": "Xodim"
+    "staff": "Xodim",
+    "admin": "Admin"
   },
   "home": {
     "title": "Dorixonalar",
