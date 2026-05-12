@@ -1,4 +1,3 @@
-from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -27,16 +26,15 @@ class Settings(BaseSettings):
 
     # Admin
     admin_telegram_id: int = 0
-    admin_phones: list[str] = []
-
-    @field_validator("admin_phones", mode="before")
-    @classmethod
-    def _split_phones(cls, v):
-        if isinstance(v, str):
-            return [p.strip() for p in v.split(",") if p.strip()]
-        return v
+    # Stored as a raw comma-separated string in the env to avoid
+    # pydantic-settings' JSON-decoding of list[str] fields.
+    admin_phones: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @property
+    def admin_phones_list(self) -> list[str]:
+        return [p.strip() for p in self.admin_phones.split(",") if p.strip()]
 
 
 settings = Settings()
@@ -51,6 +49,6 @@ def user_is_admin(user) -> bool:
         and user.telegram_user_id == settings.admin_telegram_id
     ):
         return True
-    if user.phone and user.phone in settings.admin_phones:
+    if user.phone and user.phone in settings.admin_phones_list:
         return True
     return False
