@@ -77,6 +77,8 @@ class Order(Base, UUIDMixin, TimestampMixin):
 
     # Per-order contact phone override. When null, fall back to user.phone.
     contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Name of the person picking up, when ordering for someone else.
+    recipient_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Staff reply image (screenshot from POS/calculator app)
     reply_image_key: Mapped[str | None] = mapped_column(String(500), nullable=True)

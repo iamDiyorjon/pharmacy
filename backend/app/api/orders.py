@@ -55,6 +55,11 @@ class CreateOrderRequest(BaseModel):
         pattern=r"^\+?\d{9,15}$",
         description="Optional override; falls back to user.phone when null.",
     )
+    recipient_name: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Name of the person picking up, when ordering for someone else.",
+    )
 
 
 class OrderItemResponse(BaseModel):
@@ -77,6 +82,8 @@ class OrderResponse(BaseModel):
     currency: str
     notes: str | None
     rejection_reason: str | None
+    contact_phone: str | None = None
+    recipient_name: str | None = None
     can_cancel: bool
     cancel_reason: str | None
     created_at: str
@@ -118,6 +125,8 @@ def _order_to_response(
         currency=order.currency,
         notes=order.notes,
         rejection_reason=order.rejection_reason,
+        contact_phone=order.contact_phone,
+        recipient_name=order.recipient_name,
         can_cancel=can_cancel,
         cancel_reason=cancel_reason,
         created_at=order.created_at.isoformat() if order.created_at else "",
@@ -180,6 +189,7 @@ async def create_order(
             items=items,
             notes=body.notes,
             contact_phone=body.contact_phone,
+            recipient_name=body.recipient_name,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

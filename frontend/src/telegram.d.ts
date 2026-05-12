@@ -54,6 +54,8 @@ interface TelegramWebApp {
   openTelegramLink(url: string): void;
   showAlert(message: string, callback?: () => void): void;
   showConfirm(message: string, callback?: (confirmed: boolean) => void): void;
+  isVersionAtLeast(version: string): boolean;
+  requestContact?(callback?: (shared: boolean) => void): void;
   addToHomeScreen?(): void;
   checkHomeScreenStatus?(callback: (status: string) => void): void;
   requestFullscreen?(): void;

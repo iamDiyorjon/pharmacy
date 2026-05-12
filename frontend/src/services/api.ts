@@ -70,6 +70,8 @@ export interface Order {
 	currency: string;
 	notes: string | null;
 	rejection_reason: string | null;
+	contact_phone: string | null;
+	recipient_name: string | null;
 	can_cancel: boolean;
 	cancel_reason: string | null;
 	created_at: string;
@@ -115,6 +117,7 @@ export interface StaffOrder {
 	user_telegram_username: string | null;
 	user_telegram_id: number | null;
 	contact_phone: string | null;
+	recipient_name: string | null;
 	created_at: string;
 	ready_at: string | null;
 	reply_image_url: string | null;
@@ -135,6 +138,7 @@ export interface CreateOrderRequest {
 	items?: CreateOrderItem[];
 	notes?: string;
 	contact_phone?: string;
+	recipient_name?: string;
 }
 
 export interface UpdateOrderItem {

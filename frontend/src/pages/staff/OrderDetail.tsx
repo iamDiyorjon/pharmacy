@@ -316,6 +316,12 @@ export default function StaffOrderDetail() {
 								<InfoRow label={t("settings.phone")} value={order.user_phone} />
 							)
 						)}
+						{order.recipient_name && (
+							<InfoRow
+								label={t("order.recipientName", "Kim olib ketadi")}
+								value={order.recipient_name}
+							/>
+						)}
 						{order.user_telegram_username && (
 							<InfoRow
 								label="Telegram"

@@ -6,6 +6,7 @@ import PageHeader from "../components/PageHeader";
 import {
 	getPharmacies,
 	createOrder,
+	initAuth,
 	type Pharmacy,
 	type CreateOrderItem,
 } from "../services/api";
@@ -31,13 +32,60 @@ export default function Order() {
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const savedPhone = (localStorage.getItem("user_phone") || "").trim();
+	const [savedPhone, setSavedPhone] = useState<string>(
+		(localStorage.getItem("user_phone") || "").trim(),
+	);
 	const [phoneMode, setPhoneMode] = useState<"saved" | "other">(
 		savedPhone ? "saved" : "other",
 	);
 	const [otherPhone, setOtherPhone] = useState("");
+	const [recipientName, setRecipientName] = useState("");
+	const [shareStatus, setShareStatus] = useState<
+		"idle" | "waiting" | "fetching" | "failed"
+	>("idle");
 
 	const PHONE_RE = /^\+?\d{9,15}$/;
+	const tg = window.Telegram?.WebApp;
+	const canRequestContact =
+		!!tg && typeof tg.isVersionAtLeast === "function" &&
+		tg.isVersionAtLeast("6.9") && typeof tg.requestContact === "function";
+
+	async function pollPhone(): Promise<string | null> {
+		// After requestContact() succeeds, the bot saves the phone to User.phone.
+		// Re-call /auth/init to fetch the updated record. Poll up to ~5s.
+		for (let attempt = 0; attempt < 5; attempt++) {
+			await new Promise((r) => setTimeout(r, 1000));
+			try {
+				const auth = await initAuth();
+				if (auth.phone) return auth.phone;
+			} catch {
+				// keep trying
+			}
+		}
+		return null;
+	}
+
+	function handleShareViaTelegram() {
+		if (!tg || !tg.requestContact) return;
+		setShareStatus("waiting");
+		tg.requestContact((shared) => {
+			if (!shared) {
+				setShareStatus("failed");
+				return;
+			}
+			setShareStatus("fetching");
+			pollPhone().then((phone) => {
+				if (phone) {
+					localStorage.setItem("user_phone", phone);
+					setSavedPhone(phone);
+					setPhoneMode("saved");
+					setShareStatus("idle");
+				} else {
+					setShareStatus("failed");
+				}
+			});
+		});
+	}
 
 	useEffect(() => {
 		getPharmacies()
@@ -69,6 +117,7 @@ export default function Order() {
 		}
 
 		let contactPhone: string | undefined;
+		let recipient: string | undefined;
 		if (phoneMode === "other") {
 			const trimmed = otherPhone.trim().replace(/\s/g, "");
 			if (!trimmed) {
@@ -77,6 +126,13 @@ export default function Order() {
 			}
 			if (!PHONE_RE.test(trimmed)) {
 				setError(t("order.phoneInvalid", "Raqam noto'g'ri formatda"));
+				return;
+			}
+			recipient = recipientName.trim();
+			if (!recipient) {
+				setError(
+					t("order.recipientNameRequired", "Olib ketuvchi ismi kerak"),
+				);
 				return;
 			}
 			contactPhone = trimmed;
@@ -91,6 +147,7 @@ export default function Order() {
 				items,
 				notes: notes || undefined,
 				contact_phone: contactPhone,
+				recipient_name: recipient,
 			});
 			navigate(`/order/${order.id}`);
 		} catch {
@@ -244,6 +301,30 @@ export default function Order() {
 							<span style={styles.phoneValue}>{savedPhone}</span>
 						</label>
 					)}
+					{!savedPhone && canRequestContact && shareStatus !== "fetching" && (
+						<button
+							type="button"
+							style={styles.shareBtn}
+							onClick={handleShareViaTelegram}
+							disabled={shareStatus === "waiting"}
+						>
+							{"📱"}{" "}
+							{t("order.shareViaTelegram", "Telegram orqali raqamimni ulashish")}
+						</button>
+					)}
+					{shareStatus === "fetching" && (
+						<div style={styles.phoneHint}>
+							{t("order.fetchingPhone", "Raqam saqlanmoqda...")}
+						</div>
+					)}
+					{shareStatus === "failed" && (
+						<div style={styles.warningBox}>
+							{t(
+								"order.phoneShareFailed",
+								"Raqamni olib bo'lmadi. Pastdagi maydonga kiriting.",
+							)}
+						</div>
+					)}
 					<label style={styles.phoneOption}>
 						<input
 							type="radio"
@@ -253,19 +334,40 @@ export default function Order() {
 							onChange={() => setPhoneMode("other")}
 						/>
 						<span style={styles.phoneOptionLabel}>
-							{t("order.otherPhone", "Boshqa raqam")}
+							{t("order.otherPhone", "Boshqa raqam (yaqinim uchun)")}
 						</span>
 					</label>
 					{phoneMode === "other" && (
-						<input
-							type="tel"
-							style={styles.phoneInput}
-							placeholder="+998 90 123 45 67"
-							value={otherPhone}
-							onChange={(e) => setOtherPhone(e.target.value)}
-							inputMode="tel"
-							autoComplete="tel"
-						/>
+						<>
+							<input
+								type="tel"
+								style={styles.phoneInput}
+								placeholder="+998 90 123 45 67"
+								value={otherPhone}
+								onChange={(e) => setOtherPhone(e.target.value)}
+								inputMode="tel"
+								autoComplete="tel"
+							/>
+							<input
+								type="text"
+								style={styles.phoneInput}
+								placeholder={t(
+									"order.recipientNamePlaceholder",
+									"masalan: Onam Gulnora",
+								)}
+								aria-label={t("order.recipientName", "Kim olib ketadi (ism)")}
+								value={recipientName}
+								onChange={(e) => setRecipientName(e.target.value)}
+								autoComplete="name"
+								maxLength={100}
+							/>
+							<div style={styles.warningBox}>
+								{t(
+									"order.otherPhoneWarning",
+									"Dorixona shu raqamga qo'ng'iroq qiladi. Noto'g'ri raqam bo'lsa, buyurtma yetkazib bo'lmaydi.",
+								)}
+							</div>
+						</>
 					)}
 				</div>
 
@@ -586,5 +688,28 @@ const styles: Record<string, React.CSSProperties> = {
 		background: "var(--tg-theme-secondary-bg-color, #f5f5f5)",
 		color: "var(--tg-theme-text-color, #222)",
 		boxSizing: "border-box",
+	},
+	shareBtn: {
+		padding: "12px 16px",
+		borderRadius: 10,
+		border: "none",
+		background: "var(--tg-theme-button-color, #2196f3)",
+		color: "var(--tg-theme-button-text-color, #fff)",
+		fontSize: 14,
+		fontWeight: 600,
+		cursor: "pointer",
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 8,
+	},
+	warningBox: {
+		padding: "10px 12px",
+		borderRadius: 10,
+		background: "#fff8e1",
+		borderLeft: "4px solid #ffb300",
+		color: "#7a5900",
+		fontSize: 12,
+		lineHeight: 1.4,
 	},
 };

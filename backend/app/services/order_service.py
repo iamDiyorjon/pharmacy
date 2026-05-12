@@ -54,6 +54,7 @@ class OrderService:
         items: list[dict] | None = None,
         notes: str | None = None,
         contact_phone: str | None = None,
+        recipient_name: str | None = None,
     ) -> Order:
         """Create order with items, validate pharmacy exists.
 
@@ -76,6 +77,7 @@ class OrderService:
             status=OrderStatus.CREATED,
             notes=notes,
             contact_phone=contact_phone,
+            recipient_name=recipient_name,
             expires_at=now + timedelta(hours=2),
         )
         db.add(order)

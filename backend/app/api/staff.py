@@ -118,6 +118,7 @@ class StaffOrderResponse(BaseModel):
     user_telegram_username: str | None = None
     user_telegram_id: int | None = None
     contact_phone: str | None = None
+    recipient_name: str | None = None
     created_at: str
     ready_at: str | None
     reply_image_url: str | None = None
@@ -293,6 +294,7 @@ def _staff_order_response(order) -> StaffOrderResponse:
         user_telegram_username=order.user.telegram_username if order.user else None,
         user_telegram_id=order.user.telegram_user_id if order.user else None,
         contact_phone=order.contact_phone,
+        recipient_name=order.recipient_name,
         created_at=order.created_at.isoformat() if order.created_at else "",
         ready_at=order.ready_at.isoformat() if order.ready_at else None,
         reply_image_url=reply_image_url,
