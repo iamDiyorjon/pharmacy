@@ -8,16 +8,18 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import time
+from datetime import datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.config import settings
 from app.db.session import get_db
+from app.models.analytics_event import AnalyticsEvent
+from app.models.order import Order
 from app.models.pharmacy import Pharmacy
 from app.models.user import User
 
@@ -181,3 +183,104 @@ async def delete_pharmacy(
     pharmacy.is_active = False
     await db.commit()
     logger.info("Admin deactivated pharmacy: %s", pharmacy.name)
+
+
+# ---------------------------------------------------------------------------
+# GET /admin/stats — acquisition funnel + sources for the last N days
+# ---------------------------------------------------------------------------
+
+
+FUNNEL_STEPS = ("bot_start", "phone_shared", "webapp_opened", "order_placed")
+
+
+class FunnelStep(BaseModel):
+    name: str
+    users: int
+    events: int
+
+
+class DailyCount(BaseModel):
+    date: str
+    new_users: int
+
+
+class SourceBreakdown(BaseModel):
+    source: str | None
+    users: int
+
+
+class StatsResponse(BaseModel):
+    days: int
+    since: datetime
+    total_users: int
+    total_orders: int
+    funnel: list[FunnelStep]
+    new_users_by_day: list[DailyCount]
+    top_sources: list[SourceBreakdown]
+
+
+@router.get(
+    "/stats",
+    response_model=StatsResponse,
+    summary="Acquisition funnel and source breakdown",
+)
+async def get_stats(
+    days: int = Query(7, ge=1, le=90),
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> StatsResponse:
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
+    total_orders = (await db.execute(select(func.count(Order.id)))).scalar_one()
+
+    funnel: list[FunnelStep] = []
+    for step in FUNNEL_STEPS:
+        rows = await db.execute(
+            select(
+                func.count(func.distinct(AnalyticsEvent.user_id)),
+                func.count(AnalyticsEvent.id),
+            ).where(
+                AnalyticsEvent.name == step,
+                AnalyticsEvent.created_at >= since,
+            )
+        )
+        users_count, events_count = rows.one()
+        funnel.append(
+            FunnelStep(name=step, users=users_count or 0, events=events_count or 0)
+        )
+
+    daily_rows = await db.execute(
+        select(
+            func.date_trunc("day", User.created_at).label("day"),
+            func.count(User.id),
+        )
+        .where(User.created_at >= since)
+        .group_by("day")
+        .order_by("day")
+    )
+    new_users_by_day = [
+        DailyCount(date=day.date().isoformat(), new_users=count)
+        for day, count in daily_rows.all()
+    ]
+
+    source_rows = await db.execute(
+        select(User.source, func.count(User.id))
+        .where(User.created_at >= since)
+        .group_by(User.source)
+        .order_by(func.count(User.id).desc())
+        .limit(20)
+    )
+    top_sources = [
+        SourceBreakdown(source=src, users=cnt) for src, cnt in source_rows.all()
+    ]
+
+    return StatsResponse(
+        days=days,
+        since=since,
+        total_users=total_users,
+        total_orders=total_orders,
+        funnel=funnel,
+        new_users_by_day=new_users_by_day,
+        top_sources=top_sources,
+    )

@@ -18,6 +18,7 @@ from app.models.staff import PharmacyStaff  # noqa: F401
 from app.models.medicine import Medicine, MedicineAvailability  # noqa: F401
 from app.models.order import Order, OrderItem  # noqa: F401
 from app.models.prescription import Prescription  # noqa: F401
+from app.models.analytics_event import AnalyticsEvent  # noqa: F401
 
 config = context.config
 

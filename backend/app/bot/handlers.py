@@ -12,21 +12,21 @@ from __future__ import annotations
 import logging
 
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    KeyboardButton,
     Message,
-    ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     WebAppInfo,
 )
+from aiogram.types import User as TgUser
 from sqlalchemy import select
 
 from app.config import settings
 from app.db.session import async_session
 from app.models.user import User
+from app.services.analytics import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +62,6 @@ MESSAGES = {
         ),
         "unknown": "Iltimos, dorixona ilovasini ochish uchun quyidagi tugmani bosing.",
         "open_app": "Ilovani ochish",
-        "share_contact": "📱 Raqamni ulashish",
-        "ask_contact": (
-            "📞 Buyurtmalaringiz uchun telefon raqamingizni ulashing.\n\n"
-            "Dorixona kerak bo'lganda shu raqamga qo'ng'iroq qiladi."
-        ),
         "contact_saved": (
             "✅ Rahmat! Raqam saqlandi.\n\nEndi ilovani ochishingiz mumkin."
         ),
@@ -99,11 +94,6 @@ MESSAGES = {
         ),
         "unknown": "Пожалуйста, нажмите кнопку ниже, чтобы открыть приложение аптеки.",
         "open_app": "Открыть приложение",
-        "share_contact": "📱 Поделиться номером",
-        "ask_contact": (
-            "📞 Поделитесь номером телефона для ваших заказов.\n\n"
-            "Аптека позвонит на этот номер при необходимости."
-        ),
         "contact_saved": (
             "✅ Спасибо! Номер сохранён.\n\nТеперь можете открыть приложение."
         ),
@@ -136,11 +126,6 @@ MESSAGES = {
         ),
         "unknown": "Please tap the button below to open the pharmacy app.",
         "open_app": "Open App",
-        "share_contact": "📱 Share contact",
-        "ask_contact": (
-            "📞 Please share your phone number for your orders.\n\n"
-            "The pharmacy will call this number if needed."
-        ),
         "contact_saved": ("✅ Thank you! Number saved.\n\nYou can now open the app."),
         "contact_mismatch": ("⚠️ Please share only your own contact."),
         "contact_in_use": (
@@ -185,45 +170,39 @@ def _open_app_keyboard(message: Message) -> InlineKeyboardMarkup | None:
     )
 
 
-def _share_contact_keyboard(message: Message) -> ReplyKeyboardMarkup:
-    """Reply keyboard with a single 'Share contact' button."""
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=_msg(message, "share_contact"), request_contact=True)]
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-
-
-async def _user_has_phone(telegram_user_id: int) -> bool:
-    """Return True if the user already has a phone saved."""
-    async with async_session() as session:
-        result = await session.execute(
-            select(User.phone).where(User.telegram_user_id == telegram_user_id)
-        )
-        phone = result.scalar_one_or_none()
-        return bool(phone)
-
-
 # ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, bot: Bot) -> None:
+async def cmd_start(message: Message, bot: Bot, command: CommandObject) -> None:
     """Handle the /start command with a localised welcome message.
 
-    If the user has not yet shared their phone, prompts them with a
-    ``request_contact`` reply keyboard before showing the Open App button.
+    Reads the optional deep-link payload (``/start pharmacy_<id>`` etc.),
+    persists it as the user's acquisition source on first contact, and emits
+    a ``bot_start`` analytics event.
     """
     user = message.from_user
     if user is None:
         return
 
+    source = (command.args or "").strip()[:100] or None
     first_name = user.first_name or "there"
-    logger.info("User %s started the bot (telegram_user_id=%s)", first_name, user.id)
+    logger.info(
+        "User %s started the bot (telegram_user_id=%s, source=%s)",
+        first_name,
+        user.id,
+        source,
+    )
+
+    db_user = await _upsert_user_on_start(user, source)
+    await log_event(
+        "bot_start",
+        user_id=db_user.id if db_user else None,
+        source=source,
+        telegram_user_id=user.id,
+    )
 
     key = "welcome" if settings.telegram_webapp_url else "welcome_no_url"
 
@@ -233,11 +212,48 @@ async def cmd_start(message: Message, bot: Bot) -> None:
         reply_markup=_open_app_keyboard(message),
     )
 
-    if not await _user_has_phone(user.id):
-        await message.answer(
-            _msg(message, "ask_contact"),
-            reply_markup=_share_contact_keyboard(message),
+
+async def _upsert_user_on_start(
+    tg_user: TgUser, source: str | None
+) -> User | None:
+    """Create the user if missing; first-touch attribution for ``source``.
+
+    Returns the persisted User, or None if the upsert raced and failed.
+    """
+    from sqlalchemy.exc import IntegrityError  # noqa: PLC0415
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_user_id == tg_user.id)
         )
+        existing: User | None = result.scalar_one_or_none()
+
+        if existing is not None:
+            if source and not existing.source:
+                existing.source = source
+                await session.commit()
+                await session.refresh(existing)
+            return existing
+
+        new_user = User(
+            telegram_user_id=tg_user.id,
+            telegram_username=tg_user.username,
+            first_name=tg_user.first_name or "Unknown",
+            last_name=tg_user.last_name,
+            language_code=(tg_user.language_code or "uz")[:10],
+            source=source,
+        )
+        session.add(new_user)
+        try:
+            await session.commit()
+            await session.refresh(new_user)
+            return new_user
+        except IntegrityError:
+            await session.rollback()
+            result = await session.execute(
+                select(User).where(User.telegram_user_id == tg_user.id)
+            )
+            return result.scalar_one_or_none()
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +302,7 @@ async def handle_contact(message: Message) -> None:
 
         try:
             await session.commit()
+            await session.refresh(user)
         except IntegrityError:
             await session.rollback()
             await message.answer(
@@ -293,6 +310,13 @@ async def handle_contact(message: Message) -> None:
                 reply_markup=ReplyKeyboardRemove(),
             )
             return
+
+    await log_event(
+        "phone_shared",
+        user_id=user.id,
+        source=user.source,
+        telegram_user_id=sender.id,
+    )
 
     await message.answer(
         _msg(message, "contact_saved"),

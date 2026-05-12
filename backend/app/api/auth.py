@@ -247,6 +247,16 @@ async def auth_init(
         db, telegram_user_id=telegram_user_id, user_id=user.id
     )
 
+    from app.services.analytics import log_event  # noqa: PLC0415
+
+    await log_event(
+        "webapp_opened",
+        user_id=user.id,
+        source=user.source,
+        telegram_user_id=telegram_user_id,
+        is_staff=is_staff,
+    )
+
     token, expire = create_access_token(user.id, user.telegram_user_id, "tma")
     lifetime_seconds = ACCESS_TOKEN_EXPIRE_MINUTES * 60
 

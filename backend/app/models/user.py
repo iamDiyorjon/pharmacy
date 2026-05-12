@@ -14,5 +14,6 @@ class User(Base, UUIDMixin, TimestampMixin):
     phone: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     language_code: Mapped[str] = mapped_column(String(10), default="uz", nullable=False)
+    source: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
 
     orders = relationship("Order", back_populates="user", lazy="noload")

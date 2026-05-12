@@ -185,6 +185,19 @@ async def create_order(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     await publish_order_event(order, "order_created")
+
+    from app.services.analytics import log_event  # noqa: PLC0415
+
+    await log_event(
+        "order_placed",
+        user_id=current_user.id,
+        source=current_user.source,
+        order_id=str(order.id),
+        pharmacy_id=str(order.pharmacy_id),
+        order_type=body.order_type,
+        item_count=len(items) if items else 0,
+    )
+
     return await _build_response(db, order, order_service)
 
 
